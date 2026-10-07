@@ -6,7 +6,8 @@ export type WordPart =
   | { t: 'dq'; parts: WordPart[] } // "..."
   | { t: 'param'; p: ParamExp }
   | { t: 'cmd'; src: string; body: Program } // $(...) or `...`
-  | { t: 'arith'; expr: string }; // $(( ... ))
+  | { t: 'arith'; expr: string } // $(( ... ))
+  | { t: 'procsub'; src: string; body: Program }; // <( ... )
 
 export interface Word {
   parts: WordPart[];

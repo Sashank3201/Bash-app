@@ -56,6 +56,7 @@ function wordText(w: Word): string {
       else if (p.t === 'param') s += '$' + p.p.name;
       else if (p.t === 'cmd') s += '$(' + p.src + ')';
       else if (p.t === 'arith') s += '$((' + p.expr + '))';
+      else if (p.t === 'procsub') s += '<(' + p.src + ')';
     }
   };
   walk(w.parts);
@@ -102,28 +103,40 @@ export class Parser {
   }
 
   /**
-   * Parse one top-level command at a time (like bash reading a script), so a syntax error
-   * on line 10 only surfaces after lines 1–9 have run. Returns null at end of input.
+   * Parse one input line at a time (like bash reading a script): a syntax error on line 10
+   * only surfaces after lines 1–9 have run. Returns null at end of input.
    */
-  nextItem(): { node: Node; bg: boolean } | null {
+  nextLine(): { node: Node; bg: boolean }[] | null {
     this.skipNewlines();
-    const t = this.peek();
-    if (t.k === 'eof') {
+    if (this.peek().k === 'eof') {
       this.finishHeredocsAtEof();
       return null;
     }
-    const node = this.parseAndOr();
-    let bg = false;
-    const s = this.peek();
-    if (s.k === 'op' && (s.v === ';' || s.v === '&')) {
-      this.next();
-      bg = s.v === '&';
-    } else if (s.k === 'nl') {
-      this.next();
-    } else if (s.k !== 'eof') {
+    const items: { node: Node; bg: boolean }[] = [];
+    for (;;) {
+      const node = this.parseAndOr();
+      let bg = false;
+      const s = this.peek();
+      if (s.k === 'op' && (s.v === ';' || s.v === '&')) {
+        this.next();
+        bg = s.v === '&';
+        items.push({ node, bg });
+        const n = this.peek();
+        if (n.k === 'nl') {
+          this.next();
+          return items;
+        }
+        if (n.k === 'eof') return items;
+        continue;
+      }
+      items.push({ node, bg });
+      if (s.k === 'nl') {
+        this.next();
+        return items;
+      }
+      if (s.k === 'eof') return items;
       throw this.unexpected(s);
     }
-    return { node, bg };
   }
 
   /** Parse the body of $( ... ) — stops after the matching ')'. */
@@ -217,11 +230,12 @@ export class Parser {
       fd = Number(m[0]);
       this.pos += m[0].length;
     }
+    if (fd === undefined && this.src.startsWith('>(', this.pos)) throw new UnsupportedError('Output process substitution >(...)');
+    if (fd === undefined && this.src.startsWith('<(', this.pos)) {
+      return { k: 'word', w: this.readWord((ch) => META.has(ch)), start, line };
+    }
     for (const op of OPS) {
       if (this.src.startsWith(op, this.pos)) {
-        if ((op === '<' || op === '>') && this.src[this.pos + 1] === '(') {
-          throw new UnsupportedError('Process substitution <(...)');
-        }
         this.pos += op.length;
         return { k: 'op', v: op, fd, start, line };
       }
@@ -299,6 +313,16 @@ export class Parser {
         flush();
         parts.push({ t: 'q', v: n });
         this.pos += 2;
+        continue;
+      }
+      if (c === '<' && this.src[this.pos + 1] === '(') {
+        // process substitution <( ... )
+        flush();
+        const sub = new Parser(this.src, this.pos + 2, this.line, this.opts);
+        const body = sub.parseCommandSubstitution();
+        parts.push({ t: 'procsub', src: this.src.slice(this.pos + 2, sub.pos - 1), body });
+        this.pos = sub.pos;
+        this.line = sub.line;
         continue;
       }
       if (braceMode) {

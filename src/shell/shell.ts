@@ -79,6 +79,7 @@ interface Seg {
 type Piece = Seg | 'BREAK';
 
 const DEFAULT_IFS = ' \t\n';
+let procSubCounter = 0;
 
 let yieldImpl: () => Promise<void>;
 if (typeof MessageChannel !== 'undefined' && typeof window !== 'undefined') {
@@ -181,9 +182,9 @@ export class Shell {
     try {
       const p = new Parser(src, 0, 1, { interactive: this.interactive });
       for (;;) {
-        let item;
+        let items;
         try {
-          item = p.nextItem();
+          items = p.nextLine();
         } catch (e) {
           if (e instanceof ShellSyntaxError) {
             io.stderr.write(this.errPrefix(e.line) + e.message + '\n');
@@ -196,10 +197,15 @@ export class Shell {
             this.lastStatus = 2;
             return 2;
           }
+          if (e instanceof UnsupportedError) {
+            io.stderr.write(this.errPrefix(p.line) + e.message + '\n');
+            this.lastStatus = 2;
+            return 2;
+          }
           throw e;
         }
-        if (!item) break;
-        await this.execItem(item.node, io);
+        if (!items) break;
+        for (const item of items) await this.execItem(item.node, io);
       }
       if (!this.interactive) await this.runExitTrap(io);
       return this.lastStatus;
@@ -576,6 +582,10 @@ export class Shell {
           out.push({ s, q: inDq, sp: !inDq && !noSplit });
           break;
         }
+        case 'procsub': {
+          out.push({ s: await this.processSubst(p.body), q: true, sp: false });
+          break;
+        }
         case 'arith': {
           const exprText = await this.expandString(parseWordString(p.expr));
           let v: bigint;
@@ -857,6 +867,22 @@ export class Shell {
     return out.buf.replace(/\n+$/, '');
   }
 
+  /** <(cmd): run it now and hand back a /dev/fd/N path holding its output. */
+  private async processSubst(body: Program): Promise<string> {
+    const out = new StringWriter();
+    const child = this.subshell();
+    try {
+      await child.execProgramInner(body, { stdin: InBuf.empty(), stdout: out, stderr: this.curErr });
+    } catch (e) {
+      if (!(e instanceof ExitSignal)) throw e;
+    }
+    const n = 63 - (procSubCounter++ % 14);
+    if (!this.vfs.exists('/dev/fd')) this.vfs.mkdir('/dev/fd', { parents: true });
+    const path = `/dev/fd/${n}`;
+    this.vfs.writeFile(path, out.buf, { mode: 0o666 });
+    return path;
+  }
+
   async execProgramInner(prog: Program, io: IOCtx): Promise<number> {
     try {
       await this.execList(prog, io);
@@ -1011,6 +1037,7 @@ export class Shell {
 
   async exec(node: Node, io: IOCtx): Promise<number> {
     let status: number;
+    if (node.type !== 'list') this.lineno = node.line;
     switch (node.type) {
       case 'simple':
         status = await this.execSimple(node, io);
@@ -1515,12 +1542,20 @@ export class Shell {
     if (!action) return;
     this.inTrap = true;
     const saved = this.lastStatus;
+    const line = this.lineno;
     try {
-      await this.run(action, io);
+      // $LINENO inside the trap reports the line that triggered it
+      const p = new Parser(action, 0, line);
+      for (let items = p.nextLine(); items; items = p.nextLine()) {
+        for (const it of items) await this.exec(it.node, io);
+      }
     } catch (e) {
-      if (!(e instanceof ExitSignal)) throw e;
+      if (e instanceof ShellSyntaxError || e instanceof IncompleteInput) {
+        io.stderr.write(this.errPrefix() + 'trap: ' + e.message + '\n');
+      } else if (!(e instanceof ExitSignal)) throw e;
     } finally {
       this.inTrap = false;
+      this.lineno = line;
       if (sig !== 'EXIT') this.lastStatus = saved;
     }
   }

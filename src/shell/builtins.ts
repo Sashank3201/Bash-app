@@ -457,9 +457,9 @@ async function runInCurrent(sh: Shell, src: string, io: IOCtx, name: string | nu
   if (name) sh.scriptName = name;
   try {
     for (;;) {
-      let item;
+      let items;
       try {
-        item = p.nextItem();
+        items = p.nextLine();
       } catch (e) {
         if (e instanceof ShellSyntaxError || e instanceof IncompleteInput) {
           const msg = e instanceof ShellSyntaxError ? e.message : 'syntax error: unexpected end of file';
@@ -468,8 +468,8 @@ async function runInCurrent(sh: Shell, src: string, io: IOCtx, name: string | nu
         }
         throw e;
       }
-      if (!item) break;
-      await sh.exec(item.node, io);
+      if (!items) break;
+      for (const item of items) await sh.exec(item.node, io);
     }
     return sh.lastStatus;
   } finally {

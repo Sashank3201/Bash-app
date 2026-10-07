@@ -3,7 +3,7 @@
 import { posixRegex } from '../pattern';
 import { InBuf, StringWriter } from '../io';
 import { FsError } from '../vfs';
-import { formatExp, formatG } from '../format';
+import { formatExp, formatG, toFixedC } from '../format';
 import { readText, register, type CmdCtx } from './registry';
 import { strftime } from './time';
 
@@ -90,7 +90,7 @@ export function sprintf(fmt: string, args: Val[], conv: (v: Val) => string = (v)
       case 'f':
       case 'F': {
         const n = num(arg);
-        s = sign(n) + Math.abs(n).toFixed(prec ?? 6);
+        s = sign(n) + toFixedC(Math.abs(n), prec ?? 6);
         break;
       }
       case 'e':

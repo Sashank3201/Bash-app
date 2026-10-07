@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { runSource, VFS } from '../../src/shell';
 import { CASES } from './cases';
+import { CASES2 } from './cases2';
 
 let hasBash = false;
 try {
@@ -54,7 +55,7 @@ function runReal(src: string, files: Record<string, string>, stdin: string, args
 }
 
 describe.skipIf(!hasBash)('differential: simulator vs real bash', () => {
-  for (const c of CASES) {
+  for (const c of [...CASES, ...CASES2]) {
     it(c.name, async () => {
       const files = c.files ?? {};
       const real = runReal(c.src, files, c.stdin ?? '', c.args ?? []);

@@ -91,6 +91,21 @@ export function shellQuote(s: string): string {
   return s.replace(/[^A-Za-z0-9_./=:,@%+-]/g, (c) => (c === '\n' ? "$'\\n'" : '\\' + c));
 }
 
+/** toFixed with C-library rounding (exact binary ties round half to even). */
+export function toFixedC(x: number, prec: number): string {
+  if (!isFinite(x)) return String(x);
+  const p = Math.min(100, prec + 30);
+  const long = Math.abs(x).toFixed(p);
+  const dot = long.indexOf('.');
+  const rest = dot >= 0 ? long.slice(dot + 1 + prec) : '';
+  if (/^50*$/.test(rest)) {
+    const kept = long.slice(0, dot + 1 + prec).replace(/\.$/, '');
+    const lastDigit = Number(kept[kept.length - 1]);
+    if (lastDigit % 2 === 0) return (x < 0 ? '-' : '') + kept;
+  }
+  return x.toFixed(prec);
+}
+
 function pad(s: string, width: number, left: boolean, zero: boolean): string {
   if (s.length >= width) return s;
   if (left) return s + ' '.repeat(width - s.length);
@@ -236,7 +251,7 @@ export function printf(format: string, args: string[]): PrintfResult {
         case 'G': {
           const n = toFloat(arg ?? '', errors);
           const p = prec ?? 6;
-          if (conv === 'f' || conv === 'F') s = Math.abs(n).toFixed(p);
+          if (conv === 'f' || conv === 'F') s = toFixedC(Math.abs(n), p);
           else if (conv === 'e' || conv === 'E') s = formatExp(Math.abs(n), p, conv === 'E');
           else s = formatG(Math.abs(n), p, conv === 'G', flags.includes('#'));
           s = (n < 0 || Object.is(n, -0) ? '-' : flags.includes('+') ? '+' : flags.includes(' ') ? ' ' : '') + s;

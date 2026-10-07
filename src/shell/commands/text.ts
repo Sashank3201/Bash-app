@@ -275,7 +275,7 @@ register(
   'sort',
   withUsage(async (c) => {
     const { flags, multi, operands } = parseOpts(c.args, {
-      short: 'nrufbhgsMVdcCR',
+      short: 'nrufbhgsMVdcCRz',
       withArg: 'ktoST',
       long: {
         'numeric-sort': 'n', reverse: 'r', unique: 'u', 'ignore-case': 'f', 'human-numeric-sort': 'h', key: 'k=',
@@ -289,6 +289,7 @@ register(
     }
     const global = ['n', 'r', 'f', 'b', 'h', 'g', 'M', 'V', 'd'].filter((k) => flags[k]).join('');
     const keys = (multi.k ?? []).map((k) => parseKey(k, global));
+    const nl = flags.z ? '\0' : '\n';
     let text = '';
     let status = 0;
     for await (const inp of inputs(c, operands)) {
@@ -296,10 +297,10 @@ register(
         status = 2;
         continue;
       }
-      text += inp.text && !inp.text.endsWith('\n') ? inp.text + '\n' : inp.text;
+      text += inp.text && !inp.text.endsWith(nl) ? inp.text + nl : inp.text;
     }
     if (status) return status;
-    const lines = splitLines(text);
+    const lines = text === '' ? [] : text.split(nl).slice(0, -1);
     const cmp = (a: string, b: string): number => {
       if (keys.length) {
         for (const k of keys) {
@@ -332,14 +333,15 @@ register(
       out = [];
       for (const l of sorted) if (!out.length || cmp(out[out.length - 1], l) !== 0) out.push(l);
     }
+    const joined = out.map((l) => l + nl).join('');
     if (typeof flags.o === 'string') {
       try {
-        c.vfs.writeFile(c.abs(flags.o), joinLines(out), { cred: c.cred });
+        c.vfs.writeFile(c.abs(flags.o), joined, { cred: c.cred });
       } catch (e) {
         c.err(`open failed: ${flags.o}: ${e instanceof FsError ? e.message : e}`);
         return 2;
       }
-    } else c.stdout.write(joinLines(out));
+    } else c.stdout.write(joined);
     return 0;
   }),
 );
