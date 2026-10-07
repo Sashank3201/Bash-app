@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <title>Ink &amp; Shell</title>
+    <meta name="description" content="Learn Bash scripting for defensive security in 21 days — lessons, a built-in terminal, challenges and case files." />
+    <meta name="theme-color" content="#F6F3EC" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1A1816" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Ink & Shell" />
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <script>
+      // Apply the saved theme before first paint so there is no flash.
+      (function () {
+        try {
+          var raw = localStorage.getItem('ink-shell');
+          var pref = raw ? (JSON.parse(raw).state || {}).settings : null;
+          var theme = pref && pref.theme ? pref.theme : 'system';
+          if (theme === 'system') theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.dataset.theme = theme;
+          if (pref && pref.fontScale) document.documentElement.style.setProperty('--font-scale', pref.fontScale);
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
