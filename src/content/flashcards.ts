@@ -90,6 +90,40 @@ export const FLASHCARDS: Flashcard[] = [
   { id: 'c-continue', day: 10, tag: 'loops', front: '`continue` vs `break`?', back: '`continue` skips to the next item. `break` leaves the loop completely.' },
   { id: 'c-until', day: 10, tag: 'loops', front: 'What does `until` do?', back: 'Repeats its body until the condition becomes true — `while` turned inside out.' },
   { id: 'c-forcat', day: 10, tag: 'loops', front: 'Why not `for line in $(cat file)`?', back: 'It splits on every space, not on lines. Use `while read -r line`.' },
+  // Day 11
+  { id: 'c-cut', day: 11, tag: 'text', front: 'Print fields 1 and 7 of /etc/passwd?', back: '`cut -d: -f1,7 /etc/passwd`' },
+  { id: 'c-tr', day: 11, tag: 'text', front: 'Uppercase text / delete carriage returns with tr?', back: "`tr 'a-z' 'A-Z'` / `tr -d '\\r'` — tr reads stdin only." },
+  { id: 'c-sortk', day: 11, tag: 'text', front: 'Sort /etc/passwd by UID?', back: '`sort -t: -k3 -n /etc/passwd` (separator, key field, numeric).' },
+  { id: 'c-sed', day: 11, tag: 'text', front: 'Replace every “ERROR” with “error” on each line?', back: "`sed 's/ERROR/error/g'` — without `g`, only the first match per line." },
+  { id: 'c-awkprint', day: 11, tag: 'awk', front: 'Print the first and last field of each line with awk?', back: "`awk '{print $1, $NF}'`" },
+  { id: 'c-awkcond', day: 11, tag: 'awk', front: 'Print the client IP of every 404 in an access log?', back: "`awk '$9 == 404 {print $1}' access.log`" },
+  { id: 'c-awksum', day: 11, tag: 'awk', front: 'Sum column 10 with awk?', back: "`awk '{s += $10} END {print s}'`" },
+  { id: 'c-awkF', day: 11, tag: 'awk', front: 'Make awk split on commas?', back: "`awk -F, '{print $2}' file.csv`" },
+  // Day 12
+  { id: 'c-func', day: 12, tag: 'functions', front: 'Define a function on one line?', back: '`greet() { echo "hi $1"; }` — note the `;` before `}`.' },
+  { id: 'c-funcargs', day: 12, tag: 'functions', front: 'Inside a function, what is `$1`?', back: 'The function’s first argument, not the script’s.' },
+  { id: 'c-local', day: 12, tag: 'functions', front: 'Why use `local` in functions?', back: 'Variables are global by default; `local` stops a function from overwriting the rest of the script’s variables.' },
+  { id: 'c-return', day: 12, tag: 'functions', front: 'What can `return` give back?', back: 'Only a status number (0–255). Return data by printing it.' },
+  { id: 'c-funcout', day: 12, tag: 'functions', front: 'Store what a function prints?', back: '`n=$(count_failed /var/log/auth.log)`' },
+  { id: 'c-case', day: 12, tag: 'logic', front: '`case` skeleton?', back: '`case $x in a) … ;; b|c) … ;; *) … ;; esac`' },
+  { id: 'c-casepat', day: 12, tag: 'logic', front: 'Match y, Y, yes or Yes in one case pattern?', back: '`[Yy]|[Yy]es)`' },
+  { id: 'c-dispatch', day: 12, tag: 'functions', front: 'The “toolkit” script pattern?', back: 'Functions for each job + `case "$1" in …` to choose one + `*)` printing usage and `exit 2`.' },
+  // Day 13
+  { id: 'c-regex-class', day: 13, tag: 'regex', front: 'Regex: one digit? one char that is NOT a space?', back: '`[0-9]` and `[^ ]`' },
+  { id: 'c-regex-quant', day: 13, tag: 'regex', front: 'Regex quantifiers `*`, `+`, `?`, `{2,4}`?', back: '0 or more, 1 or more, optional, 2 to 4 times — of the thing just before.' },
+  { id: 'c-grepEo', day: 13, tag: 'regex', front: 'Extract only the matching text, one per line?', back: "`grep -Eo 'PATTERN' file`" },
+  { id: 'c-ipv4', day: 13, tag: 'regex', front: 'A regex for IPv4 addresses?', back: '`[0-9]{1,3}(\\.[0-9]{1,3}){3}`' },
+  { id: 'c-url', day: 13, tag: 'regex', front: 'A simple regex for URLs?', back: '`https?://[^ "<>]+`' },
+  { id: 'c-ioc', day: 13, tag: 'security', front: 'What are IOCs?', back: 'Indicators of compromise: IPs, domains, URLs, emails, file hashes an attack leaves behind.' },
+  { id: 'c-defang', day: 13, tag: 'security', front: 'Defang `http://evil.example`?', back: '`hxxp://evil[.]example` — safe to paste, won’t become a link.' },
+  { id: 'c-matchop', day: 13, tag: 'regex', front: 'Test whether `$ip` looks like an IP inside a script?', back: '`[[ $ip =~ ^[0-9]{1,3}(\\.[0-9]{1,3}){3}$ ]]` — don’t quote the regex.' },
+  // Day 14
+  { id: 'c-nf', day: 14, tag: 'awk', front: 'In awk, what are `NF`, `$NF` and `$(NF-1)`?', back: 'Number of fields; the last field; the second-to-last field.' },
+  { id: 'c-threshold', day: 14, tag: 'security', front: 'Keep only IPs with 10+ hits from `uniq -c` output?', back: "`… | uniq -c | awk '$1 >= 10'`" },
+  { id: 'c-subshell', day: 14, tag: 'loops', front: 'Why does a counter stay 0 after `cmd | while read …; do ((n++)); done`?', back: 'The piped loop runs in a subshell; its variables vanish when the pipe ends.' },
+  { id: 'c-procsub', day: 14, tag: 'loops', front: 'Loop over a command’s output and keep the variables?', back: '`while read -r x; do …; done < <(cmd)`' },
+  { id: 'c-default', day: 14, tag: 'scripting', front: 'Give an optional second argument a default of 10?', back: '`threshold=${2:-10}`' },
+  { id: 'c-bruteforce', day: 14, tag: 'security', front: 'Strongest brute-force signal in an auth log?', back: 'Many `Failed password` lines from one IP, followed by an `Accepted` login from the same IP.' },
 ];
 
 const BY_ID = new Map(FLASHCARDS.map((c) => [c.id, c]));

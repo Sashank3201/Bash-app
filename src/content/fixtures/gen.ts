@@ -26,6 +26,8 @@ export function apacheTime(ms: number): string {
   return `${p2(d.getUTCDate())}/${MON[d.getUTCMonth()]}/${d.getUTCFullYear()}:${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:${p2(d.getUTCSeconds())} +0000`;
 }
 
+const UIDS: Record<string, number> = { root: 0, backup: 34, analyst: 1000, mara: 1001, raj: 1002 };
+
 export const STORY_START = Date.UTC(2026, 2, 9, 0, 0, 0); // Mon Mar 9 2026
 export const STORY_END = Date.UTC(2026, 2, 14, 12, 0, 0); // Sat Mar 14 2026 noon
 
@@ -109,7 +111,7 @@ export function authLog(o: AuthOptions = {}): string {
       const t = base + spread + 60000;
       const p = nextPid();
       at(t, `sshd[${p}]: Accepted password for ${a.success} from ${a.ip} port ${rand(30000, 65000)} ssh2`);
-      at(t + 300, `sshd[${p}]: pam_unix(sshd:session): session opened for user ${a.success}(uid=0) by (uid=0)`);
+      at(t + 300, `sshd[${p}]: pam_unix(sshd:session): session opened for user ${a.success}(uid=${UIDS[a.success] ?? 1000}) by (uid=0)`);
     }
   }
   ev.sort((x, y) => x.t - y.t);
