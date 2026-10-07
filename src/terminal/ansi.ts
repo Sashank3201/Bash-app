@@ -32,7 +32,6 @@ export function parseAnsi(input: string): Span[] {
     spans.push({ text: buf, ...st });
     buf = '';
   };
-  // eslint-disable-next-line no-control-regex
   const re = /\x1b\[([0-9;?]*)([A-Za-z])|\x1b\(B|\x1b[=>]/g;
   let last = 0;
   let m: RegExpExecArray | null;
@@ -83,7 +82,6 @@ export function parseAnsi(input: string): Span[] {
 }
 
 export function stripAnsi(s: string): string {
-  // eslint-disable-next-line no-control-regex
   return s.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\(B|\x1b[=>]/g, '');
 }
 

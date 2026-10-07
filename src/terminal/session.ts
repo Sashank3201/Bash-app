@@ -41,7 +41,7 @@ export interface SessionOptions {
 const MAX_ENTRIES = 1200;
 
 export function normalizeInput(s: string): string {
-  return s.replace(/[“”„]/g, '"').replace(/[‘’‚]/g, "'").replace(/—/g, '--').replace(/–/g, '-').replace(/ /g, ' ');
+  return s.replace(/[“”„]/g, '"').replace(/[‘’‚]/g, "'").replace(/—/g, '--').replace(/–/g, '-').replace(/\u00a0/g, ' ');
 }
 
 export class TerminalSession {

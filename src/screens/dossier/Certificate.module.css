@@ -1,0 +1,149 @@
+.wrap {
+  min-height: 100dvh;
+  padding: calc(10px + var(--safe-top)) 14px 32px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.cert {
+  position: relative;
+  background: var(--card);
+  padding: 14px;
+  box-shadow: var(--shadow-3);
+  border-radius: 4px;
+}
+
+.border {
+  border: 2px solid var(--ink);
+  outline: 1px solid var(--ink);
+  outline-offset: -8px;
+  padding: 34px 22px 28px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.top span:last-child {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.this {
+  margin-top: 18px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.name {
+  font-family: var(--font-serif);
+  font-size: clamp(2.4rem, 10vw, 4rem);
+  font-weight: 450;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid var(--hairline-strong);
+}
+
+.body {
+  max-width: 46ch;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.rank {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.foot {
+  margin-top: 18px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 12px;
+}
+
+.sig {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.15rem;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.sigLine {
+  margin-top: 4px;
+  font-size: 0.6rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+
+.locked .border {
+  filter: blur(0.3px);
+  opacity: 0.45;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 24px;
+}
+
+.overlay b {
+  font-family: var(--font-serif);
+  font-size: 1.8rem;
+  font-weight: 500;
+}
+
+.overlay span {
+  color: var(--muted);
+  max-width: 30ch;
+}
+
+@media print {
+  .bar {
+    display: none;
+  }
+
+  .wrap {
+    padding: 0;
+  }
+
+  .cert {
+    box-shadow: none;
+  }
+}

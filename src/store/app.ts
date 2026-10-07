@@ -63,7 +63,7 @@ export interface AppState {
   updateMission(day: number, fn: (m: MissionRecord) => void): void;
   completeMission(day: number, cardIds: string[]): void;
   solveChallenge(id: string, kind: 'task' | 'case' | 'arena', xp: number, hints: number, revealed?: boolean): void;
-  useHint(id: string): void;
+  takeHint(id: string): void;
   attempt(id: string): void;
   setDraft(id: string, text: string): void;
   unlockCards(ids: string[]): void;
@@ -168,7 +168,7 @@ export const useApp = create<AppState>()(
         get().addXp(xp);
       },
 
-      useHint: (id) =>
+      takeHint: (id) =>
         set((s) => {
           const c = s.challenges[id] ?? { solved: false, hints: 0, attempts: 0, xp: 0 };
           return { challenges: { ...s.challenges, [id]: { ...c, hints: c.hints + 1 } } };

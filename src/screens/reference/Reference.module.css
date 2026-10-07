@@ -1,0 +1,99 @@
+.back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -8px 0 4px -8px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline-strong);
+  background: var(--card);
+  color: var(--muted);
+  margin-bottom: 26px;
+}
+
+.search:focus-within {
+  border-color: var(--ink);
+}
+
+.search input {
+  flex: 1;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.group + .group {
+  margin-top: 28px;
+}
+
+.groupTitle {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  -webkit-appearance: none;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.item:hover .name {
+  color: var(--red);
+}
+
+.item svg {
+  flex: none;
+  color: var(--faint);
+}
+
+.name {
+  flex: none;
+  width: 92px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.sum {
+  flex: 1;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
