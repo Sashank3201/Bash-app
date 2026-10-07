@@ -193,3 +193,40 @@ export function sysLog(seed = 3, host = 'web01', start = STORY_START, end = STOR
   lines.sort((a, b) => a.t - b.t);
   return lines.map((l) => l.s).join('\n') + '\n';
 }
+
+export interface AppLogOptions {
+  seed?: number;
+  lines: number;
+  errors?: number;
+  warnings?: number;
+  start?: number;
+  service?: string;
+  /** Extra lines injected at fixed positions (by index). */
+  inject?: { at: number; level: string; msg: string }[];
+}
+
+const INFO_MSGS = ['request served in 41ms', 'health check ok', 'cache refreshed', 'user session started', 'scheduled job finished', 'config reloaded', 'connection pool at 12/50', 'queue drained'];
+const WARN_MSGS = ['disk usage at 83%', 'slow query took 2.4s', 'certificate expires in 12 days', 'retrying upstream request', 'memory usage at 78%'];
+const ERROR_MSGS = ['database timeout after 30s', 'upstream returned 502', 'permission denied writing /var/cache/app', 'failed to parse request body', 'connection reset by peer'];
+
+/** Application log: "2026-03-14 08:00:01 LEVEL service: message". Exact error/warning counts. */
+export function appLog(o: AppLogOptions): string {
+  const r = rng(o.seed ?? 1);
+  const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length)];
+  const levels: string[] = Array(o.lines).fill('INFO');
+  const slots = Array.from({ length: o.lines }, (_, i) => i).sort(() => r() - 0.5);
+  let k = 0;
+  for (let i = 0; i < (o.errors ?? 0); i++) levels[slots[k++]] = 'ERROR';
+  for (let i = 0; i < (o.warnings ?? 0); i++) levels[slots[k++]] = 'WARN';
+  const svc = o.service ?? 'app';
+  let t = o.start ?? Date.UTC(2026, 2, 14, 8, 0, 0);
+  const out: string[] = [];
+  const fmt = (ms: number) => new Date(ms).toISOString().replace('T', ' ').slice(0, 19);
+  for (let i = 0; i < o.lines; i++) {
+    t += 1000 + Math.floor(r() * 240000);
+    for (const inj of o.inject ?? []) if (inj.at === i) out.push(`${fmt(t)} ${inj.level} ${svc}: ${inj.msg}`);
+    const lv = levels[i];
+    out.push(`${fmt(t)} ${lv} ${svc}: ${pick(lv === 'ERROR' ? ERROR_MSGS : lv === 'WARN' ? WARN_MSGS : INFO_MSGS)}`);
+  }
+  return out.join('\n') + '\n';
+}

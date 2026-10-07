@@ -76,7 +76,16 @@ describe('cases', () => {
   for (const cs of CASES) {
     it(`case ${cs.number}: reference solution passes every test`, async () => {
       const r = await gradeCase(cs, cs.solution);
-      for (const t of r) expect(t, `${t.name}\nexpected:\n${t.expected}\nactual:\n${t.actual}\nstderr:${t.stderr}`).toMatchObject({ ok: true });
+      for (const t of r) {
+        expect(t, `${t.name}\nexpected:\n${t.expected}\nactual:\n${t.actual}\nstderr:${t.stderr}`).toMatchObject({ ok: true });
+        const check = cs.tests.find((x) => x.name === t.name)?.check;
+        if (!check?.status) expect(t.stderr, `${t.name} wrote to stderr`).toBe('');
+        if (check?.output !== undefined) expect(t.actual.trim(), `${t.name} printed nothing`).not.toBe('');
+      }
+    });
+    it(`case ${cs.number}: hidden tests are not all identical`, async () => {
+      const r = await gradeCase(cs, cs.solution);
+      if (r.length > 1) expect(new Set(r.map((t) => t.expected)).size, 'every test produced the same output').toBeGreaterThan(1);
     });
     it(`case ${cs.number}: the starter template does not pass`, async () => {
       const r = await gradeCase(cs, cs.starter);

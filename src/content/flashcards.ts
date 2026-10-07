@@ -63,6 +63,33 @@ export const FLASHCARDS: Flashcard[] = [
   { id: 'c-quotes', day: 7, tag: 'scripting', front: 'Single vs double quotes?', back: 'Double quotes expand `$vars` and `$(cmds)`; single quotes keep everything literal.' },
   { id: 'c-cmdsub', day: 7, tag: 'scripting', front: 'Store a command’s output in a variable?', back: '`var=$(command)`' },
   { id: 'c-braces', day: 7, tag: 'scripting', front: 'Print the value of `host` followed by `-01`?', back: '`echo "${host}-01"` — braces mark where the name ends.' },
+  // Day 8
+  { id: 'c-positional', day: 8, tag: 'scripting', front: 'Inside a script, where is the first argument?', back: '`$1` (then `$2`, `$3`…). `$0` is the script’s own name.' },
+  { id: 'c-argcount', day: 8, tag: 'scripting', front: 'How many arguments did the script get?', back: '`$#`' },
+  { id: 'c-atquote', day: 8, tag: 'scripting', front: 'Pass all of a script’s arguments on, keeping each one intact?', back: '`"$@"` — with the quotes.' },
+  { id: 'c-exitcode', day: 8, tag: 'scripting', front: 'What does exit status 0 mean?', back: 'Success. Anything from 1 to 255 means some kind of failure.' },
+  { id: 'c-dollarq', day: 8, tag: 'scripting', front: 'Where is the exit status of the last command?', back: '`$?` — read it straight away, because the next command overwrites it.' },
+  { id: 'c-exitn', day: 8, tag: 'scripting', front: 'End a script with “wrong usage”?', back: '`exit 2` (by convention 1 = general failure, 2 = usage error).' },
+  { id: 'c-grepq', day: 8, tag: 'grep', front: 'What does `grep -q` do?', back: 'Prints nothing; it only sets the exit status: 0 = found, 1 = not found.' },
+  { id: 'c-read', day: 8, tag: 'scripting', front: 'Ask the user for a value with a prompt?', back: '`read -r -p "Prompt: " var` — `-r` keeps backslashes literal.' },
+  // Day 9
+  { id: 'c-if', day: 9, tag: 'logic', front: 'What does `if` actually test?', back: 'The exit status of the command after it. 0 runs `then`; anything else skips to `elif`/`else`.' },
+  { id: 'c-testspaces', day: 9, tag: 'logic', front: 'Why does `[$x -eq 1]` fail?', back: '`[` is a command and `]` is its last argument. Both need spaces: `[ "$x" -eq 1 ]`.' },
+  { id: 'c-numops', day: 9, tag: 'logic', front: 'Number comparisons inside `[ ]`?', back: '`-eq -ne -lt -le -gt -ge`' },
+  { id: 'c-strops', day: 9, tag: 'logic', front: 'String tests inside `[ ]`?', back: '`=` equal, `!=` not equal, `-z` empty, `-n` not empty.' },
+  { id: 'c-fileops', day: 9, tag: 'logic', front: 'File tests: exists, regular file, directory, non-empty?', back: '`-e`, `-f`, `-d`, `-s` (and `-r -w -x` for permissions).' },
+  { id: 'c-dbl', day: 9, tag: 'logic', front: '`[[ ]]` vs `[ ]`?', back: '`[[ ]]` is bash-only and safer: no word splitting, `&&`/`||` inside, `==` with patterns, `=~` for regex.' },
+  { id: 'c-andor', day: 9, tag: 'logic', front: '`A && B` vs `A || B`?', back: '`&&` runs B only if A succeeded. `||` runs B only if A failed.' },
+  { id: 'c-elif', day: 9, tag: 'logic', front: 'Three-way branch syntax?', back: '`if …; then …; elif …; then …; else …; fi`' },
+  // Day 10
+  { id: 'c-for', day: 10, tag: 'loops', front: 'Loop over three hostnames?', back: '`for h in web01 db01 mail01; do echo "$h"; done`' },
+  { id: 'c-forglob', day: 10, tag: 'loops', front: 'Loop over every .log file in a folder safely?', back: '`for f in "$dir"/*.log; do … "$f" …; done` — quote the variable, not the `*`.' },
+  { id: 'c-whileread', day: 10, tag: 'loops', front: 'Process a file line by line?', back: '`while read -r line; do …; done < file`' },
+  { id: 'c-ifs', day: 10, tag: 'loops', front: 'Split /etc/passwd lines into fields with read?', back: '`while IFS=: read -r name _ uid _; do …; done < /etc/passwd`' },
+  { id: 'c-arith', day: 10, tag: 'loops', front: 'Add n to a running total?', back: '`total=$((total + n))` (or `((total += n))`).' },
+  { id: 'c-continue', day: 10, tag: 'loops', front: '`continue` vs `break`?', back: '`continue` skips to the next item. `break` leaves the loop completely.' },
+  { id: 'c-until', day: 10, tag: 'loops', front: 'What does `until` do?', back: 'Repeats its body until the condition becomes true — `while` turned inside out.' },
+  { id: 'c-forcat', day: 10, tag: 'loops', front: 'Why not `for line in $(cat file)`?', back: 'It splits on every space, not on lines. Use `while read -r line`.' },
 ];
 
 const BY_ID = new Map(FLASHCARDS.map((c) => [c.id, c]));
