@@ -1,0 +1,149 @@
+.md > :first-child {
+  margin-top: 0;
+}
+
+.md a {
+  color: var(--red-ink);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.dropcap > p:first-child::first-letter {
+  float: left;
+  font-family: var(--font-serif);
+  font-size: 3.5em;
+  line-height: 0.84;
+  font-weight: 500;
+  padding: 0.06em 0.1em 0 0;
+  color: var(--red);
+}
+
+.block {
+  position: relative;
+  margin: 0.9em 0 0;
+  border-radius: var(--radius-m);
+  background: var(--term-bg);
+  color: var(--term-fg);
+  box-shadow: var(--shadow-1);
+}
+
+.block pre {
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  padding-right: 92px !important;
+  background: transparent !important;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  border-radius: var(--radius-m);
+}
+
+.block pre code {
+  white-space: pre;
+}
+
+.output {
+  background: var(--paper-2);
+  color: var(--ink-2);
+  box-shadow: none;
+  border: 1px dashed var(--hairline-strong);
+}
+
+.output pre {
+  padding-top: 26px !important;
+  padding-right: 16px !important;
+  color: var(--ink) !important;
+}
+
+.blockLabel {
+  position: absolute;
+  top: 8px;
+  left: 16px;
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.blockActions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.blockBtn {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  min-width: 28px;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--term-hairline);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--term-muted);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.blockBtn:hover {
+  color: var(--term-fg);
+}
+
+.runBtn {
+  color: var(--term-accent);
+  border-color: rgba(240, 162, 59, 0.35);
+}
+
+.tComment {
+  color: #8a8172;
+  font-style: italic;
+}
+
+.tString {
+  color: #a8e0b9;
+}
+
+.tVar {
+  color: #f0c674;
+}
+
+.tOp {
+  color: #8fb3d9;
+}
+
+.tKw {
+  color: #ef8a7d;
+  font-weight: 600;
+}
+
+.tCmd {
+  color: #f7f1e6;
+  font-weight: 600;
+}
+
+.tFlag {
+  color: #7fc8c4;
+}
+
+.tNum {
+  color: #d9a7d3;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  margin-top: 0.9em;
+}
+
+.tableWrap table {
+  margin-top: 0 !important;
+}

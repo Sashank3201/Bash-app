@@ -1,0 +1,53 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--term-bg);
+  border-radius: var(--radius-l);
+  overflow: hidden;
+}
+
+.cm {
+  flex: 1;
+  min-height: 0;
+}
+
+.cm :global(.cm-editor) {
+  height: 100%;
+}
+
+.symbols {
+  display: flex;
+  gap: 5px;
+  padding: 7px 8px;
+  overflow-x: auto;
+  border-top: 1px solid var(--term-hairline);
+  background: var(--term-bg-2);
+  scrollbar-width: none;
+  flex: none;
+}
+
+.symbols::-webkit-scrollbar {
+  display: none;
+}
+
+.sym {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  border: 1px solid var(--term-hairline);
+  border-bottom-width: 2px;
+  background: #2a2520;
+  color: #f7f1e6;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  touch-action: manipulation;
+}
+
+.sym:active {
+  transform: translateY(1px);
+}

@@ -1,0 +1,377 @@
+/* ---------- Buttons ---------- */
+.btn {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    transform 0.18s var(--ease-out),
+    background-color 0.2s var(--ease-out),
+    border-color 0.2s var(--ease-out),
+    color 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: var(--ink);
+  color: var(--on-ink);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, var(--shadow-1);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--ink-2);
+}
+
+.accent {
+  background: var(--red);
+  color: #fff;
+}
+
+.accent:hover:not(:disabled) {
+  background: var(--red-ink);
+}
+
+.secondary {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--hairline-strong);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--ink-2);
+  padding: 0 12px;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--paper-2);
+}
+
+.small {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 0.8125rem;
+}
+
+.block {
+  width: 100%;
+}
+
+.iconBtn {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color 0.2s var(--ease-out), transform 0.18s var(--ease-out);
+}
+
+.iconBtn:hover {
+  background: var(--paper-2);
+}
+
+.iconBtn:active {
+  transform: scale(0.94);
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-1);
+}
+
+/* ---------- Chips ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: var(--paper-2);
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.chipRed {
+  background: var(--red-wash);
+  border-color: transparent;
+  color: var(--red-ink);
+}
+
+.chipGreen {
+  background: var(--green-wash);
+  border-color: transparent;
+  color: var(--green);
+}
+
+.chipAmber {
+  background: var(--amber-wash);
+  border-color: transparent;
+  color: var(--amber);
+}
+
+/* ---------- Progress rule ---------- */
+.rule {
+  position: relative;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+
+.ruleFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--ink);
+  transform-origin: left center;
+}
+
+.ruleRed .ruleFill {
+  background: var(--red);
+}
+
+/* ---------- Segmented tabs ---------- */
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--paper-2);
+  border: 1px solid var(--hairline);
+}
+
+.segment {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  flex: 1;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 0;
+}
+
+.segmentActive {
+  color: var(--ink);
+}
+
+.segmentPill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--shadow-1);
+  z-index: -1;
+}
+
+/* ---------- Sheet ---------- */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.sheet {
+  position: fixed;
+  z-index: 61;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: calc(100dvh - 24px - var(--safe-top));
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-radius: 22px 22px 0 0;
+  box-shadow: var(--shadow-3);
+  padding-bottom: var(--safe-bottom);
+}
+
+.sheetFull {
+  top: calc(12px + var(--safe-top));
+}
+
+@media (min-width: 900px) {
+  .sheet {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    width: min(720px, calc(100vw - 48px));
+    max-height: min(86dvh, 880px);
+    border-radius: 22px;
+    translate: -50% -50%;
+  }
+
+  .sheetFull {
+    width: min(1100px, calc(100vw - 48px));
+    height: min(90dvh, 960px);
+  }
+}
+
+.sheetHandle {
+  width: 40px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--hairline-strong);
+  margin: 10px auto 2px;
+  flex: none;
+}
+
+@media (min-width: 900px) {
+  .sheetHandle {
+    display: none;
+  }
+}
+
+.sheetHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 20px;
+  flex: none;
+}
+
+.sheetTitle {
+  flex: 1;
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.sheetBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---------- Toasts ---------- */
+.toasts {
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  top: calc(12px + var(--safe-top));
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  width: min(420px, calc(100vw - 32px));
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px 10px 10px;
+  border-radius: 16px;
+  background: var(--ink);
+  color: var(--on-ink);
+  box-shadow: var(--shadow-3);
+}
+
+.toastTitle {
+  font-weight: 650;
+  font-size: 0.9rem;
+}
+
+.toastBody {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.toastXp {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--term-accent);
+}
+
+:root[data-theme='dark'] .toastXp {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--red-ink);
+}
+
+/* ---------- Seal (badge) ---------- */
+.seal {
+  display: block;
+}
+
+.sealLocked {
+  opacity: 0.32;
+  filter: grayscale(1);
+}
+
+/* ---------- Kbd ---------- */
+.kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--hairline-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+  background: var(--card);
+}
+
+/* ---------- Empty ---------- */
+.empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--muted);
+}

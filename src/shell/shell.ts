@@ -1492,6 +1492,16 @@ export class Shell {
       return 126;
     }
     const content = node.content ?? '';
+    const sim = /^#!\/sim\/builtin (\S+)/.exec(content);
+    if (sim) {
+      // placeholder for a command implemented by the simulator (/usr/bin/ls etc.)
+      const c = COMMANDS[sim[1]];
+      if (c) return this.runCommand(sim[1], c, [sim[1], ...argv.slice(1)], io);
+      const b = BUILTINS[sim[1]];
+      if (b) return b(this, [sim[1], ...argv.slice(1)], io, new Map());
+      io.stderr.write(`${sim[1]}: not available in the simulator\n`);
+      return 1;
+    }
     const shebang = /^#!\s*(\S+)(?:\s+(\S+))?/.exec(content);
     if (shebang) {
       const interp = shebang[1].endsWith('/env') ? shebang[2] ?? '' : shebang[1];
