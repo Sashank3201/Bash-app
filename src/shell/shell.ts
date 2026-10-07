@@ -143,7 +143,7 @@ export class Shell {
     this.hostname = o.hostname ?? (this.vfs.tryRead('/etc/hostname') ?? 'halden-ws01').trim();
     const userName = o.user ?? 'analyst';
     const u = this.vfs.userByName(userName);
-    this.cred = u ? { uid: u.uid, gid: u.gid } : userName === 'root' ? { ...ROOT } : { uid: 1000, gid: 1000 };
+    this.cred = u ? (this.vfs.credFor(userName) as Cred) : userName === 'root' ? { ...ROOT } : { uid: 1000, gid: 1000 };
     const home = u?.home ?? (userName === 'root' ? '/root' : '/home/' + userName);
     this.cwd = o.cwd ?? home;
     if (!this.vfs.exists(this.cwd)) this.cwd = '/';

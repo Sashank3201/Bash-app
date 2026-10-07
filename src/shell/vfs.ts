@@ -44,6 +44,8 @@ export class FsError extends Error {
 export interface Cred {
   uid: number;
   gid: number;
+  /** Supplementary groups (from /etc/group member lists). */
+  groups?: number[];
 }
 
 export const ROOT: Cred = { uid: 0, gid: 0 };
@@ -185,6 +187,22 @@ export class VFS {
     return this.groupCache.groups.get(gid) ?? this.users().find((u) => u.gid === gid)?.name ?? String(gid);
   }
 
+  /** Supplementary group ids for a user, from the member lists in /etc/group. */
+  memberOf(user: string): number[] {
+    const out: number[] = [];
+    for (const line of (this.tryRead('/etc/group') ?? '').split('\n')) {
+      const f = line.split(':');
+      if (f.length >= 4 && f[3].split(',').includes(user)) out.push(Number(f[2]));
+    }
+    return out;
+  }
+
+  /** Credentials for a named account (primary + supplementary groups). */
+  credFor(user: string): Cred | undefined {
+    const u = this.userByName(user);
+    return u ? { uid: u.uid, gid: u.gid, groups: this.memberOf(u.name) } : undefined;
+  }
+
   groupId(name: string): number | undefined {
     this.groupName(0);
     for (const [gid, n] of this.groupCache!.groups) if (n === name) return gid;
@@ -201,7 +219,7 @@ export class VFS {
     }
     let shift = 0;
     if (n.uid === cred.uid) shift = 6;
-    else if (n.gid === cred.gid) shift = 3;
+    else if (n.gid === cred.gid || cred.groups?.includes(n.gid)) shift = 3;
     return ((n.mode >> shift) & bit) !== 0;
   }
 
