@@ -8,3 +8,4 @@ playwright-report
 .cache
 scripts/linux-image/out
 *.local.test.ts
+public/linux/

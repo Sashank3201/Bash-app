@@ -31,12 +31,13 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2,png,svg,wasm}'],
-        globIgnores: ['linux/**'],
+        // The Real Linux Lab (kernel, initramfs, emulator) is downloaded only by people who open it.
+        globIgnores: ['linux/**', '**/v86-*.wasm'],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         runtimeCaching: [
           {
             // The Real Linux Lab image is large: cache it the first time it is used.
-            urlPattern: ({ url }) => url.pathname.includes('/linux/'),
+            urlPattern: ({ url }) => url.pathname.includes('/linux/') || /\/v86-[^/]*\.wasm$/.test(url.pathname),
             handler: 'CacheFirst',
             options: {
               cacheName: 'linux-lab',
