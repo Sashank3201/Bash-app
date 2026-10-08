@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "focus": "vitest run tests/content/focus.test.ts --silent=false",
     "e2e": "playwright test"
   },
   "dependencies": {

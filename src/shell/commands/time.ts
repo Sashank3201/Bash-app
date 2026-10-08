@@ -123,8 +123,8 @@ export function parseDate(s: string, now: number): number | null {
     const y = m[6] ? +m[6] : new Date(now).getUTCFullYear();
     return Date.UTC(y, MONTHS.indexOf(m[1]), +m[2], +(m[3] ?? 0), +(m[4] ?? 0), +(m[5] ?? 0));
   }
-  // "14/Mar/2026:09:12:01" (Apache) and "14 Mar 2026"
-  m = /^(\d{1,2})[/ ]([A-Z][a-z]{2})[/ ](\d{4})(?::(\d{2}):(\d{2}):(\d{2}))?/.exec(t);
+  // "14 Mar 2026" and "14 Mar 2026 09:12:01" (GNU date rejects Apache's "14/Mar/2026:09:12:01")
+  m = /^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})(?: (\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(t);
   if (m && MONTHS.includes(m[2])) return Date.UTC(+m[3], MONTHS.indexOf(m[2]), +m[1], +(m[4] ?? 0), +(m[5] ?? 0), +(m[6] ?? 0));
   m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(t);
   if (m) {

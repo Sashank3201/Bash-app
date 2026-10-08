@@ -86,8 +86,10 @@ register('base64', async (c) => {
     const b = base64Decode(t, ignore);
     if (!b) {
       // GNU prints what it could decode, then the error
-      const partial = base64Decode(t.replace(/[^A-Za-z0-9+/]/g, '').slice(0, Math.floor(t.replace(/[^A-Za-z0-9+/]/g, '').length / 4) * 4));
-      if (partial) c.stdout.write(fromBytes(partial));
+      // (only the valid prefix — decoding stops at the first bad character)
+      const prefix = /^[A-Za-z0-9+/]*/.exec(t.replace(/[\r\n]/g, ''))![0];
+      const partial = base64Decode(prefix, true);
+      if (partial?.length) c.stdout.write(fromBytes(partial));
       c.err('invalid input');
       return 1;
     }

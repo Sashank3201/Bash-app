@@ -334,7 +334,8 @@ export async function gradeCase(cs: CaseFile, script: string): Promise<CaseTestR
     const refFs = buildFixture(fixture, now);
     writeScript(refFs, cs.scriptPath, cs.solution);
     const args = t.args ?? [];
-    const cmd = ['bash', cs.scriptPath.replace(/^~/, HOME), ...args].map(shq).join(' ');
+    const scriptAbs = cs.scriptPath.replace(/^~/, HOME);
+    const cmd = t.run ? `SCRIPT=${shq(scriptAbs)}\n${t.run}` : ['bash', scriptAbs, ...args].map(shq).join(' ');
     const [actual, expected] = await Promise.all([runIn(userFs, cmd, { stdin: t.stdin }), runIn(refFs, cmd, { stdin: t.stdin })]);
     const check: Check = t.check ?? { output: 'reference' };
     let ok = true;
@@ -379,7 +380,7 @@ export async function gradeCase(cs: CaseFile, script: string): Promise<CaseTestR
         message = fsMsg;
       }
     }
-    results.push({ name: t.name, ok, args, expected: stripAnsi(expected.stdout), actual: stripAnsi(actual.stdout), stderr: actual.stderr, message });
+    results.push({ name: t.name, ok, args: t.run ? [t.run] : args, expected: stripAnsi(expected.stdout), actual: stripAnsi(actual.stdout), stderr: actual.stderr, message });
   }
   return results;
 }

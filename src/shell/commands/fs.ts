@@ -3,7 +3,7 @@
 import { posixRegex, globMatch } from '../pattern';
 import { FsError, VFS, basename, dirname, modeString, normalize, type Inode } from '../vfs';
 import { ansi, cmpC, parseOpts, readText, register, splitLines, withUsage, type CmdCtx } from './registry';
-import { lsTime, strftime } from './time';
+import { lsTime, parseDate, strftime } from './time';
 
 // ------------------------------------------------------------------ helpers
 
@@ -283,6 +283,30 @@ register(
       c.err('missing file operand');
       return 1;
     }
+    let when = c.vfs.now();
+    if (typeof flags.d === 'string') {
+      const t = parseDate(flags.d, when);
+      if (t === null) {
+        c.err(`invalid date format ‘${flags.d}’`);
+        return 1;
+      }
+      when = t;
+    } else if (typeof flags.t === 'string') {
+      const m = /^(\d{2})?(\d{2})?(\d{2})(\d{2})(\d{2})(\d{2})(?:\.(\d{2}))?$/.exec(flags.t);
+      if (!m) {
+        c.err(`invalid date format ‘${flags.t}’`);
+        return 1;
+      }
+      const year = m[2] ? Number((m[1] ?? '20') + m[2]) : new Date(when).getUTCFullYear();
+      when = Date.UTC(year, +m[3] - 1, +m[4], +m[5], +m[6], +(m[7] ?? 0));
+    } else if (typeof flags.r === 'string') {
+      try {
+        when = c.vfs.lookup(c.abs(flags.r), { cred: c.cred }).mtime;
+      } catch (e) {
+        c.err(`failed to get attributes of '${flags.r}': ${fsMsg(e)}`);
+        return 1;
+      }
+    }
     let status = 0;
     for (const f of operands) {
       const abs = c.abs(f);
@@ -290,8 +314,11 @@ register(
         const n = c.vfs.tryLookup(abs);
         if (n) {
           if (c.cred.uid !== 0 && n.uid !== c.cred.uid && !c.vfs.can(n, c.cred, 'w')) throw new FsError('EACCES');
-          n.mtime = c.vfs.now();
-        } else if (!flags.c) c.vfs.writeFile(abs, '', { cred: c.cred });
+          n.mtime = when;
+        } else if (!flags.c) {
+          c.vfs.writeFile(abs, '', { cred: c.cred });
+          c.vfs.lookup(abs).mtime = when;
+        }
       } catch (e) {
         c.err(`cannot touch '${f}': ${fsMsg(e)}`);
         status = 1;
@@ -785,6 +812,13 @@ export function describeContent(content: string): string {
   if (/^#!.*\bbash\b/.test(first)) return 'Bourne-Again shell script, ASCII text executable';
   if (/^#!.*\bsh\b/.test(first)) return 'POSIX shell script, ASCII text executable';
   if (/^#!.*python/.test(first)) return 'Python script, ASCII text executable';
+  const pdf = /^%PDF-(\d\.\d)/.exec(content);
+  if (pdf) return `PDF document, version ${pdf[1]}`;
+  if (content.startsWith('\x7fELF')) return 'ELF 64-bit LSB executable, x86-64, version 1 (SYSV)';
+  if (content.startsWith('MZ') && content.includes('PE\x00\x00')) return 'PE32+ executable (GUI) x86-64, for MS Windows';
+  if (content.startsWith('MZ') && /[\x00-\x08]/.test(content)) return 'MS-DOS executable';
+  if (content.startsWith('PK\x03\x04')) return 'Zip archive data, at least v2.0 to extract';
+  if (content.startsWith('\x89PNG')) return 'PNG image data';
   if (/[\x00-\x08\x0e-\x1f\x7f]/.test(content)) return 'data';
   if (/^\s*[{[]/.test(content) && /[}\]]\s*$/.test(content)) {
     try {
@@ -851,6 +885,38 @@ register('basename', async (c) => {
     c.stdout.write(b + '\n');
   }
   return 0;
+});
+
+register('mktemp', async (c) => {
+  const { flags, operands } = parseOpts(c.args, { short: 'duq', withArg: 'p', long: { directory: 'd', 'dry-run': 'u', quiet: 'q', tmpdir: 'p=' } });
+  const template = operands[0] ?? 'tmp.XXXXXXXXXX';
+  const xs = /X{3,}$/.exec(template);
+  if (!xs) {
+    c.err(`too few X's in template ‘${template}’`);
+    return 1;
+  }
+  const dir = typeof flags.p === 'string' ? flags.p : template.includes('/') ? '' : '/tmp';
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for (let attempt = 0; attempt < 100; attempt++) {
+    let rnd = '';
+    for (let i = 0; i < xs[0].length; i++) rnd += chars[Math.floor(Math.random() * chars.length)];
+    const name = template.slice(0, xs.index) + rnd;
+    const path = dir ? normalize(name, c.abs(dir)) : c.abs(name);
+    if (c.vfs.tryLookup(path, false)) continue;
+    try {
+      if (!flags.u) {
+        if (flags.d) c.vfs.mkdir(path, { cred: c.cred, mode: 0o700 });
+        else c.vfs.writeFile(path, '', { cred: c.cred, mode: 0o600 });
+        c.vfs.lookup(path).mode = flags.d ? 0o700 : 0o600;
+      }
+    } catch (e) {
+      if (!flags.q) c.err(`failed to create ${flags.d ? 'directory' : 'file'} via template ‘${template}’: ${fsMsg(e)}`);
+      return 1;
+    }
+    c.stdout.write(path + '\n');
+    return 0;
+  }
+  return 1;
 });
 
 register('dirname', async (c) => {

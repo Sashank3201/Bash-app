@@ -120,7 +120,7 @@ The pattern is \`CONDITION { ACTION }\`. Always wrap the program in **single quo
       id: 'w-pipe',
       md: 'Tap through each stage of this pipeline: what did `185.220.101.4` go looking for?',
       widget: 'pipeline',
-      props: { pipeline: "awk '$1 == \"185.220.101.4\" {print $7}' ~/web/access.log | sort | uniq -c | sort -rn | head -6" },
+      props: { fixture: 'day11', pipeline: "awk '$1 == \"185.220.101.4\" {print $7}' ~/web/access.log | sort | uniq -c | sort -rn | head -6" },
     },
     {
       kind: 'read',

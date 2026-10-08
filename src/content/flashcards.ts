@@ -1,8 +1,9 @@
 // Spaced-repetition cards, unlocked by finishing missions.
 
+import { MISSIONS } from './missions';
 import type { Flashcard } from './types';
 
-export const FLASHCARDS: Flashcard[] = [
+const EARLY_CARDS: Flashcard[] = [
   // Day 1
   { id: 'c-shell', day: 1, tag: 'basics', front: 'Terminal vs shell vs bash?', back: 'The **terminal** is the window. The **shell** is the program that reads and runs your commands. **Bash** is the shell we use.' },
   { id: 'c-prompt', day: 1, tag: 'basics', front: 'Decode `analyst@halden-ws01:~$`', back: '**analyst** = user, **halden-ws01** = machine, **~** = current folder (home), **$** = normal user (**#** would mean root).' },
@@ -125,6 +126,9 @@ export const FLASHCARDS: Flashcard[] = [
   { id: 'c-default', day: 14, tag: 'scripting', front: 'Give an optional second argument a default of 10?', back: '`threshold=${2:-10}`' },
   { id: 'c-bruteforce', day: 14, tag: 'security', front: 'Strongest brute-force signal in an auth log?', back: 'Many `Failed password` lines from one IP, followed by an `Accepted` login from the same IP.' },
 ];
+
+/** Days 1–14 live above; later missions carry their own `cards`. */
+export const FLASHCARDS: Flashcard[] = [...EARLY_CARDS, ...MISSIONS.flatMap((m) => m.cards ?? [])];
 
 const BY_ID = new Map(FLASHCARDS.map((c) => [c.id, c]));
 export function getCard(id: string): Flashcard | undefined {

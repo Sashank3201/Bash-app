@@ -87,11 +87,18 @@ export interface Mission {
   drills: TaskStep[];
   caseId?: string;
   debrief: { summary: string[]; cards: string[] };
+  /** Flashcards introduced by this mission (days 1–14 keep theirs in flashcards.ts). */
+  cards?: Flashcard[];
 }
 
 export interface CaseTest {
   name: string;
   args?: string[];
+  /**
+   * Run this shell snippet instead of `bash SCRIPT ARGS…`. `$SCRIPT` holds the script's absolute path,
+   * so a test can chain commands, e.g. `bash "$SCRIPT" init /srv/www base.txt && bash "$SCRIPT" check /srv/www base.txt`.
+   */
+  run?: string;
   stdin?: string;
   /** Extra setup on top of the case fixture for this test. */
   fixture?: string;
