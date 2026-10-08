@@ -569,6 +569,10 @@ function Debrief({ mission, xpEarned, onReplay, onClose }: { mission: Mission; x
             <Button block onClick={() => navigate(`/mission/${nextDay.day}`)} iconRight="arrowRight">
               Next: Day {nextDay.day} · {nextDay.title}
             </Button>
+          ) : cs && !caseSolved ? (
+            <Button block onClick={() => navigate(`/case/${cs.id}`)} iconRight="arrowRight">
+              Close the capstone to make Lead Analyst
+            </Button>
           ) : (
             <Button block onClick={() => navigate('/certificate')} iconRight="arrowRight">
               View your certificate

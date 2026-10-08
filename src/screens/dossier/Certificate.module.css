@@ -132,6 +132,7 @@
 .overlay span {
   color: var(--muted);
   max-width: 30ch;
+  margin-bottom: 8px;
 }
 
 @media print {

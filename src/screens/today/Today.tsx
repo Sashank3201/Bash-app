@@ -9,7 +9,7 @@ import { Icon } from '../../design/Icon';
 import { Markdown } from '../../design/Markdown';
 import { Page } from '../../design/Page';
 import { Button, Card, ProgressRule } from '../../design/ui';
-import { currentDay, missionProgress } from '../../engine/course';
+import { capstoneClosed, currentDay, missionProgress } from '../../engine/course';
 import { addDays, dayKey, rankFor, streakInfo } from '../../engine/progress';
 import { useApp } from '../../store/app';
 import { useDueCount } from '../review/useDue';
@@ -62,7 +62,18 @@ export default function Today() {
         {greeting()}, <em>{name || 'Analyst'}</em>.
       </p>
 
-      {finished ? (
+      {finished && !capstoneClosed(challenges) ? (
+        <Card className={s.hero}>
+          <div className="kicker">All 21 missions complete · one case left</div>
+          <h2 className={s.heroTitle}>Incident 0x21 is still open.</h2>
+          <p className={s.heroTopic}>Close the capstone case to make Lead Analyst and sign your certificate.</p>
+          <div className={s.heroActions}>
+            <Button onClick={() => navigate('/case/capstone')} iconRight="arrowRight">
+              Open the capstone
+            </Button>
+          </div>
+        </Card>
+      ) : finished ? (
         <Card className={s.hero}>
           <div className="kicker">All 21 missions complete</div>
           <h2 className={s.heroTitle}>You made Lead Analyst.</h2>

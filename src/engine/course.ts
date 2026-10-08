@@ -21,6 +21,13 @@ export function missionProgress(rec: MissionRecord | undefined, totalSteps: numb
   return totalSteps ? done / totalSteps : 0;
 }
 
+/** The capstone case closes the programme: Lead Analyst seal and the certificate. */
+export const CAPSTONE_KEY = 'case:capstone';
+
+export function capstoneClosed(challenges: Record<string, { solved: boolean }>): boolean {
+  return !!challenges[CAPSTONE_KEY]?.solved;
+}
+
 export function caseUnlocked(day: number, missions: Record<number, MissionRecord>): boolean {
   return isUnlocked(day, missions) && (missions[day]?.done || (missions[day]?.step ?? 0) > 0 || day <= 1);
 }

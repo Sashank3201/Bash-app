@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Button, IconButton, Seal } from '../../design/ui';
+import { capstoneClosed, CAPSTONE_KEY } from '../../engine/course';
 import { rankFor } from '../../engine/progress';
 import { useApp } from '../../store/app';
 import { Wordmark } from '../shell/AppShell';
@@ -9,10 +10,11 @@ export default function Certificate() {
   const navigate = useNavigate();
   const name = useApp((st) => st.profile.name);
   const missions = useApp((st) => st.missions);
+  const challenges = useApp((st) => st.challenges);
   const xp = useApp((st) => st.xp);
   const done = Object.values(missions).filter((m) => m.done).length;
-  const complete = !!missions[21]?.done;
-  const finishedAt = missions[21]?.doneAt;
+  const complete = capstoneClosed(challenges);
+  const finishedAt = challenges[CAPSTONE_KEY]?.solvedAt ?? missions[21]?.doneAt;
   return (
     <div className={s.wrap}>
       <div className={s.bar}>
@@ -50,7 +52,12 @@ export default function Certificate() {
         {!complete && (
           <div className={s.overlay}>
             <b>Not yet earned</b>
-            <span>{done}/21 missions complete. Finish the capstone to sign this certificate.</span>
+            <span>{done < 21 ? `${done}/21 missions complete. Finish the course and close the capstone case to sign this certificate.` : 'One case left: close the capstone, Incident Triage, to sign this certificate.'}</span>
+            {done >= 21 && (
+              <Button size="small" onClick={() => navigate('/case/capstone')} iconRight="arrowRight">
+                Open the capstone
+              </Button>
+            )}
           </div>
         )}
       </div>

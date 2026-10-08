@@ -43,5 +43,5 @@ export const BADGES: Badge[] = [
   { id: 'reviewer', title: 'Sharp Memory', blurb: 'Reviewed fifty flashcards.', glyph: '50', earned: (s) => s.stats.reviews >= 50 },
   { id: 'archivist', title: 'Archivist', blurb: 'Exported a backup of your progress.', glyph: '⇩', earned: (s) => s.stats.exports >= 1 },
   { id: 'centurion', title: 'Centurion', blurb: 'Ran a hundred commands.', glyph: 'C', earned: (s) => s.stats.commands >= 100 },
-  { id: 'lead', title: 'Lead Analyst', blurb: 'Closed the capstone incident.', glyph: 'L', earned: (s) => s.missionsDone.includes(21) },
+  { id: 'lead', title: 'Lead Analyst', blurb: 'Closed the capstone incident.', glyph: 'L', earned: (s) => s.challengesSolved.some((c) => c.id === 'case:capstone') },
 ];
