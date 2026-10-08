@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 import { BADGES, type BadgeSnapshot } from '../engine/badges';
-import { dayKey, newCard, review as reviewCard, type CardState, type Grade } from '../engine/progress';
+import { dayKey, newCard, RANKS, review as reviewCard, XP, type CardState, type Grade } from '../engine/progress';
 
 export type ThemePref = 'system' | 'light' | 'dark';
 
@@ -155,7 +155,7 @@ export const useApp = create<AppState>()(
           m.doneAt = m.doneAt ?? Date.now();
         });
         get().unlockCards(cardIds);
-        if (!already) get().addXp(100, `Mission ${day} complete`);
+        if (!already) get().addXp(XP.missionBonus, `Mission ${day} complete`);
         get().evaluateBadges();
       },
 
@@ -166,6 +166,9 @@ export const useApp = create<AppState>()(
           challenges: { ...s.challenges, [id]: { ...(prev ?? { attempts: 0 }), solved: true, solvedAt: Date.now(), hints, revealed, xp } },
         }));
         get().addXp(xp);
+        // Closing the capstone is the promotion, whatever hints it took to get there.
+        const lead = RANKS[RANKS.length - 1].min;
+        if (id === 'case:capstone' && get().xp < lead) get().addXp(lead - get().xp, 'Promoted to Lead Analyst');
       },
 
       takeHint: (id) =>
