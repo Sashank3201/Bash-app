@@ -218,7 +218,7 @@ export const REFERENCE: RefEntry[] = [
     usage: 'du [-s] [-h] [PATH...]',
     options: [['-s', 'Summary: one total per argument'], ['-h', 'Human-readable sizes']],
     examples: [['du -sh /var/log', 'How big are the logs?']],
-    related: ['df', 'ls'],
+    related: ['ls'],
   },
 
   // ---------------------------------------------------------------- text
@@ -445,7 +445,7 @@ export const REFERENCE: RefEntry[] = [
     usage: 'expr EXPRESSION',
     options: [],
     examples: [['expr 3 + 4', '→ 7 (spaces required)'], ['expr length "hello"', '→ 5']],
-    related: ['let'],
+    related: [],
   },
 
   // ---------------------------------------------------------------- integrity & encoding
@@ -559,7 +559,7 @@ export const REFERENCE: RefEntry[] = [
     options: [['-l', 'List what you’re allowed to run']],
     examples: [['sudo cat /etc/shadow', 'Read a root-only file'], ['sudo -l', 'Check your sudo rights']],
     security: 'Every sudo use is logged to auth.log. Check who used sudo and what they ran.',
-    related: ['id', 'su'],
+    related: ['id'],
   },
   {
     name: 'getent', kind: 'command',
@@ -761,7 +761,7 @@ export const REFERENCE: RefEntry[] = [
     usage: 'local NAME[=value]',
     options: [['-a', 'Array'], ['-A', 'Associative array']],
     examples: [['f() { local count=0; …; }', 'count won’t leak out of f']],
-    related: ['declare', 'function'],
+    related: ['declare'],
   },
   {
     name: 'declare', kind: 'builtin',
@@ -828,6 +828,71 @@ export const REFERENCE: RefEntry[] = [
     related: ['read'],
   },
   {
+    name: 'shopt', kind: 'builtin',
+    summary: 'Turn Bash’s optional behaviours on or off.',
+    usage: 'shopt -s|-u OPTION',
+    options: [['-s', 'Set (turn on)'], ['-u', 'Unset (turn off)'], ['nullglob', 'A glob that matches nothing expands to nothing, not to itself'], ['dotglob', 'Globs also match hidden files'], ['nocasematch', 'case and [[ == ]] ignore upper/lower case']],
+    examples: [['shopt -s nullglob; for f in *.log; do echo "$f"; done', 'No .log files means no loop runs at all']],
+    related: ['set', 'for'],
+  },
+  {
+    name: 'if', kind: 'concept',
+    summary: 'Run commands only when a test command succeeds (exit status 0).',
+    usage: 'if COMMAND; then …; elif COMMAND; then …; else …; fi',
+    options: [['then', 'Starts the block that runs on success'], ['elif', 'Another test, tried when the earlier ones failed'], ['else', 'Runs when every test failed'], ['fi', 'Ends the if']],
+    examples: [['if grep -q "Failed password" auth.log; then echo "failures found"; fi', 'Any command works as the test'], ['if [ -f "$1" ]; then wc -l "$1"; else echo "no such file" >&2; fi', 'With a file test']],
+    related: ['test', '[[', 'case'],
+  },
+  {
+    name: 'for', kind: 'concept',
+    summary: 'Repeat commands once for each word in a list, or count with a C-style loop.',
+    usage: 'for NAME in WORDS…; do …; done      for (( i=0; i<N; i++ )); do …; done',
+    options: [['in WORDS', 'Loop over these words (globs and $(…) are expanded first)'], ['"$@"', 'Loop over the script’s arguments'], ['(( … ))', 'C-style counter loop']],
+    examples: [['for f in /var/log/*.log; do wc -l "$f"; done', 'Once per file'], ['for (( i=1; i<=3; i++ )); do echo "try $i"; done', 'Count to three']],
+    related: ['while', 'break', 'seq'],
+  },
+  {
+    name: 'while', kind: 'concept',
+    summary: 'Repeat commands as long as a test command succeeds. until is the opposite: it repeats while the test fails.',
+    usage: 'while COMMAND; do …; done',
+    options: [['while IFS= read -r line', 'The safe way to read a file line by line'], ['until COMMAND', 'Loop until the command succeeds']],
+    examples: [['while IFS= read -r ip; do echo "checking $ip"; done < ips.txt', 'One line at a time'], ['n=0; while (( n < 3 )); do n=$((n+1)); done', 'A counter']],
+    related: ['for', 'read', 'break'],
+  },
+  {
+    name: 'case', kind: 'concept',
+    summary: 'Pick a branch by matching a word against glob patterns: tidier than a chain of elifs.',
+    usage: 'case WORD in PATTERN) …;; PATTERN|PATTERN) …;; *) …;; esac',
+    options: [[')', 'Ends a pattern'], [';;', 'Ends a branch'], ['|', 'Either pattern'], ['*)', 'Matches anything: the default branch'], ['esac', 'Ends the case']],
+    examples: [['case "$1" in start) echo go;; stop) echo halt;; *) echo "usage: $0 start|stop" >&2; exit 2;; esac', 'A subcommand menu']],
+    related: ['if', 'getopts'],
+  },
+  {
+    name: 'break', kind: 'builtin',
+    summary: 'Leave a for, while or until loop early. continue skips to the next round instead.',
+    usage: 'break [N]      continue [N]',
+    options: [['break', 'Stop the loop now'], ['continue', 'Skip the rest of this round and start the next one'], ['N', 'Act on the Nth enclosing loop']],
+    examples: [['for f in *.log; do [ -s "$f" ] || continue; head -1 "$f"; done', 'Skip empty files'], ['while read -r line; do [[ $line == END ]] && break; echo "$line"; done < notes.txt', 'Stop at a marker']],
+    related: ['for', 'while'],
+  },
+  {
+    name: 'return', kind: 'builtin',
+    summary: 'Leave a function and hand back an exit status (0 means success).',
+    usage: 'return [STATUS]',
+    options: [['(none)', 'Return the status of the last command run'], ['STATUS', 'A number from 0 to 255']],
+    examples: [['is_root() { [ "$(id -u)" -eq 0 ]; }', 'A test function returns its last status'], ['check() { [ -r "$1" ] || return 1; wc -l < "$1"; }', 'Bail out early']],
+    related: ['exit', 'local'],
+  },
+  {
+    name: 'mktemp', kind: 'command',
+    summary: 'Create a new, empty temporary file (or directory) with a unique name and print that name.',
+    usage: 'mktemp [-d] [TEMPLATE]',
+    options: [['-d', 'Make a directory instead of a file'], ['-p DIR', 'Create it inside DIR'], ['TEMPLATE', 'Name ending in XXX…, e.g. scan.XXXXXX']],
+    examples: [['tmp=$(mktemp)', 'Grab a scratch file'], ["tmp=$(mktemp); trap 'rm -f \"$tmp\"' EXIT", 'Scratch file that cleans itself up']],
+    security: 'Never use a fixed name like /tmp/out.txt in a script: another user can create it first. mktemp picks an unused name and makes the file readable only by you.',
+    related: ['trap', 'rm'],
+  },
+  {
     name: 'alias', kind: 'builtin',
     summary: 'Create a shortcut for a longer command.',
     usage: "alias NAME='COMMAND'",
@@ -863,7 +928,7 @@ export const REFERENCE: RefEntry[] = [
 ];
 
 const BY_NAME = new Map(REFERENCE.map((r) => [r.name, r]));
-const ALIASES: Record<string, string> = { '[': 'test', egrep: 'grep', fgrep: 'grep', more: 'less', readarray: 'mapfile', '.': 'source', typeset: 'declare', vim: 'nano', vi: 'nano', readlink: 'realpath', sha512sum: 'sha256sum', hd: 'hexdump', printenv: 'env', netstat: 'ss', w: 'who', lastb: 'last', gawk: 'awk', chgrp: 'chown', tput: 'printf' };
+const ALIASES: Record<string, string> = { '[': 'test', help: 'man', readonly: 'declare', continue: 'break', until: 'while', elif: 'if', esac: 'case', egrep: 'grep', fgrep: 'grep', more: 'less', readarray: 'mapfile', '.': 'source', typeset: 'declare', vim: 'nano', vi: 'nano', readlink: 'realpath', sha512sum: 'sha256sum', hd: 'hexdump', printenv: 'env', netstat: 'ss', w: 'who', lastb: 'last', gawk: 'awk', chgrp: 'chown', tput: 'printf' };
 
 export function lookupRef(name: string): RefEntry | undefined {
   return BY_NAME.get(name) ?? BY_NAME.get(ALIASES[name] ?? '');
