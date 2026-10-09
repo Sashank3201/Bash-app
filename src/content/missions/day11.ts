@@ -7,8 +7,8 @@ export const WEB_LOG = accessLog({
   seed: 21,
   normal: 150,
   scanners: [
-    { ip: '185.220.101.4', count: 45, at: Date.UTC(2026, 2, 14, 3, 12) },
-    { ip: '45.95.147.229', count: 15, at: Date.UTC(2026, 2, 14, 9, 40), ua: 'Mozilla/5.0 zgrab/0.x' },
+    { ip: '203.0.113.61', count: 45, at: Date.UTC(2026, 2, 14, 3, 12) },
+    { ip: '198.51.100.188', count: 15, at: Date.UTC(2026, 2, 14, 9, 40), ua: 'Mozilla/5.0 zgrab/0.x' },
   ],
 });
 
@@ -39,7 +39,7 @@ By lunch you’ll know who scanned us, what they were looking for, and how much 
       md: `Most data files are tables in disguise. \`/etc/passwd\` uses \`:\` between columns, a CSV uses \`,\`, and logs usually use spaces:
 
 \`\`\`text
-185.220.101.4 - - [14/Mar/2026:03:12:09 +0000] "GET /.env HTTP/1.1" 404 196 "-" "python-requests/2.31.0"
+203.0.113.61 - - [14/Mar/2026:03:12:09 +0000] "GET /.env HTTP/1.1" 404 196 "-" "python-requests/2.31.0"
 $1            $2 $3 $4                    $5     $6  $7    $8        $9  $10
 \`\`\`
 
@@ -118,9 +118,9 @@ The pattern is \`CONDITION { ACTION }\`. Always wrap the program in **single quo
     {
       kind: 'widget',
       id: 'w-pipe',
-      md: 'Tap through each stage of this pipeline: what did `185.220.101.4` go looking for?',
+      md: 'Tap through each stage of this pipeline: what did `203.0.113.61` go looking for?',
       widget: 'pipeline',
-      props: { fixture: 'day11', pipeline: "awk '$1 == \"185.220.101.4\" {print $7}' ~/web/access.log | sort | uniq -c | sort -rn | head -6" },
+      props: { fixture: 'day11', pipeline: "awk '$1 == \"203.0.113.61\" {print $7}' ~/web/access.log | sort | uniq -c | sort -rn | head -6" },
     },
     {
       kind: 'read',
@@ -213,10 +213,10 @@ sed -n '5,10p' file        # print only lines 5–10
     {
       kind: 'task',
       id: 'd-probes',
-      md: '**Drill 3.** List the **distinct URLs** that `45.95.147.229` asked for, sorted.',
+      md: '**Drill 3.** List the **distinct URLs** that `198.51.100.188` asked for, sorted.',
       check: { output: 'reference', uses: ['awk', 'sort'] },
-      solution: "awk '$1 == \"45.95.147.229\" {print $7}' ~/web/access.log | sort -u",
-      hints: ["Compare a field with text: `$1 == \"45.95.147.229\"`.", '`sort -u` sorts and removes duplicates.'],
+      solution: "awk '$1 == \"198.51.100.188\" {print $7}' ~/web/access.log | sort -u",
+      hints: ["Compare a field with text: `$1 == \"198.51.100.188\"`.", '`sort -u` sorts and removes duplicates.'],
       explain: '`.env`, `.git/config`, `backup.zip`: classic hunting for leaked secrets. Worth checking that none of those requests got a 200.',
     },
     {

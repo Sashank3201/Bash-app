@@ -23,7 +23,8 @@ Read this before adding or changing anything under `src/content/`.
 | Story week | Mon 9 – Sat 14 March **2026** (`STORY_START`, `STORY_END` in `fixtures/gen.ts`). Logs carry no year; it is always 2026 |
 | Week 1 attack | `203.0.113.7`, 14 failed root logins (`/var/log/auth.log` in the base fixture) |
 | Week 2 breach (web01) | `198.51.100.23`: 31 failures from Mar 13 23:05, then **Accepted password for raj at Mar 13 23:51**. Others: `203.0.113.7` (14), `198.51.100.140` (12), `192.0.2.66` (9). See `ATTACK_LOG` in `missions/day14.ts` |
-| Web scanners (Day 11) | `185.220.101.4` (45 × 404), `45.95.147.229` (15) — legacy; **new content uses documentation ranges only** |
+| Web scanners (Day 11) | `203.0.113.61` (45 × 404), `198.51.100.188` (15) |
+| Background noise | random failed logins and web clients from `198.18.0.0/15` (reserved for benchmarking, never assigned) |
 | Phishing (Day 13) | from `security@northw1nd-secure.example`, mail server `198.51.100.77`, sender laptop `203.0.113.45`; links to `northw1nd-secure.example`, `files.cdn-share.example` |
 | Payload host | `198.51.100.77` also serves `u.sh` (the cron payload decoded on Day 16) |
 

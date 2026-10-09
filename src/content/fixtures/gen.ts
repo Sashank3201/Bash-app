@@ -26,6 +26,19 @@ export function apacheTime(ms: number): string {
   return `${p2(d.getUTCDate())}/${MON[d.getUTCMonth()]}/${d.getUTCFullYear()}:${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:${p2(d.getUTCSeconds())} +0000`;
 }
 
+/**
+ * A random "internet" address from 198.18.0.0/15, a reserved range that is never assigned to anyone,
+ * so background noise never names a real host. Draws four numbers like a full random IPv4 did, so the
+ * rest of a seeded log stays the same.
+ */
+function noiseIp(rand: (a: number, b: number) => number, lo = 1, hi = 223): string {
+  const a = rand(lo, hi);
+  const b = rand(0, 255);
+  rand(0, 255);
+  const d = rand(1, 254);
+  return `198.${18 + (a & 1)}.${b}.${d}`;
+}
+
 const UIDS: Record<string, number> = { root: 0, backup: 34, analyst: 1000, mara: 1001, raj: 1002 };
 
 export const STORY_START = Date.UTC(2026, 2, 9, 0, 0, 0); // Mon Mar 9 2026
@@ -83,7 +96,7 @@ export function authLog(o: AuthOptions = {}): string {
   const noiseUsers = ['admin', 'test', 'ubuntu', 'oracle', 'postgres', 'git', 'user', 'pi', 'ftpuser', 'guest'];
   for (let i = 0; i < (o.noise ?? 25); i++) {
     const t = rand(start, end);
-    const ip = `${rand(1, 223)}.${rand(0, 255)}.${rand(0, 255)}.${rand(1, 254)}`;
+    const ip = noiseIp(rand);
     const p = nextPid();
     const u = noiseUsers[rand(0, noiseUsers.length)];
     at(t, `sshd[${p}]: Invalid user ${u} from ${ip} port ${rand(30000, 65000)}`);
@@ -150,7 +163,7 @@ export function accessLog(o: AccessOptions = {}): string {
   const end = o.end ?? Date.UTC(2026, 2, 14, 12, 0, 0);
   const rand = (a: number, b: number) => a + Math.floor(r() * (b - a));
   const ev: { t: number; line: string }[] = [];
-  const clients = Array.from({ length: 18 }, () => `${rand(11, 200)}.${rand(0, 255)}.${rand(0, 255)}.${rand(1, 254)}`);
+  const clients = Array.from({ length: 18 }, () => noiseIp(rand, 11, 200));
   for (let i = 0; i < (o.normal ?? 160); i++) {
     const t = rand(start, end);
     const ip = clients[rand(0, clients.length)];
@@ -181,10 +194,10 @@ export function sysLog(seed = 3, host = 'web01', start = STORY_START, end = STOR
   const msgs = [
     'systemd[1]: Started Daily apt download activities.',
     'systemd[1]: logrotate.service: Deactivated successfully.',
-    'kernel: [UFW BLOCK] IN=eth0 OUT= SRC=45.155.205.233 DST=10.20.0.15 PROTO=TCP DPT=23',
+    'kernel: [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.140 DST=10.20.0.15 PROTO=TCP DPT=23',
     'systemd[1]: Starting Cleanup of Temporary Directories...',
     'rsyslogd: [origin software="rsyslogd"] rsyslogd was HUPed',
-    'systemd-timesyncd[512]: Initial synchronization to time server 185.125.190.56:123 (ntp.ubuntu.com).',
+    'systemd-timesyncd[512]: Initial synchronization to time server 192.0.2.123:123 (ntp.halden.example).',
     'apache2[610]: AH00558: apache2: Could not reliably determine the server\'s fully qualified domain name',
     'CRON[2231]: (root) CMD (test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.daily ))',
   ];
