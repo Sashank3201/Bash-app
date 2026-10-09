@@ -124,6 +124,19 @@ defineFixture('day20', (vfs) => {
 
 const BASE = '~/integrity/baseline.sha256';
 const TODAY = '~/integrity/today.sha256';
+const CHANGED = '~/integrity/changed.sh';
+
+/** Drill 3: the CHANGED half of Case 7, as a short script. */
+const CHANGED_SH = `declare -A old
+while read -r hash path; do
+  old[$path]=$hash
+done < ${BASE}
+while read -r hash path; do
+  if [ -n "\${old[$path]}" ] && [ "\${old[$path]}" != "$hash" ]; then
+    echo "CHANGED $path"
+  fi
+done < ${TODAY}
+`;
 
 export const day20: Mission = {
   day: 20,
@@ -342,8 +355,8 @@ From weakest to strongest:
     {
       kind: 'task',
       id: 'd-alert',
-      md: '**Drill 1.** Write the line a cron job would run every ten minutes: check the baseline quietly, throw away **all** of its output (stdout and stderr), and print `ALERT: web01 web root changed` only if the check fails.',
-      check: { output: 'ALERT: web01 web root changed\n', uses: ['sha256sum'] },
+      md: '**Drill 1.** Write the line a cron job would run every ten minutes: check the baseline quietly, throw away **all** of its output (stdout and stderr), and use `||` to print `ALERT: web01 web root changed` only if the check fails.',
+      check: { output: 'ALERT: web01 web root changed\n', uses: ['sha256sum'], nodes: ['andor'] },
       solution: `sha256sum -c --quiet ${BASE} > /dev/null 2>&1 || echo "ALERT: web01 web root changed"`,
       hints: ['`> /dev/null 2>&1` throws away both streams.', '`||` runs the next command only when the one before it fails.', `\`sha256sum -c --quiet ${BASE} > /dev/null 2>&1 || echo "ALERT: web01 web root changed"\``],
       explain: 'The exit status is the whole interface: 0 is a quiet night, anything else means look. Remember the blind spot, though: if the attacker had only *added* `shell.php`, this line would have stayed silent. That’s why Case 7 compares the path lists as well.',
@@ -352,7 +365,7 @@ From weakest to strongest:
       kind: 'task',
       id: 'd-genuine',
       md: '**Drill 2.** Before the backup goes in your report, prove it’s genuine: its `index.html` must have the **same hash** as the one in the 10 March baseline. Take just the hash with `cut -c 1-64`, and `grep` the baseline for it using `$( )`.',
-      check: { output: 'reference', uses: ['grep'] },
+      check: { output: 'reference', uses: ['grep', 'sha256sum'], nodes: ['cmdsub'] },
       solution: `grep "$(sha256sum /var/backups/html-2026-03-10/index.html | cut -c 1-64)" ${BASE}`,
       hints: ['`sha256sum FILE | cut -c 1-64` prints only the hash.', 'Use that, inside `"$( )"`, as the pattern for `grep`.', `\`grep "$(sha256sum /var/backups/html-2026-03-10/index.html | cut -c 1-64)" ${BASE}\``],
       explain: 'One match, on the `index.html` line. The backup is byte for byte the file the web team deployed, so the `diff` you ran earlier shows exactly what the attacker added, and nothing else. Evidence you can’t verify is just a story.',
@@ -360,16 +373,16 @@ From weakest to strongest:
     {
       kind: 'task',
       id: 'd-changed',
-      md: `**Drill 3.** The heart of Case 7. Load the baseline into \`old\` as in the ordering exercise. Then loop over \`${TODAY}\` and print \`CHANGED PATH\` for every path that is in \`old\` with a different hash. One line, parts joined with \`;\`.`,
-      check: { output: 'CHANGED /var/www/html/index.html\n', nodes: ['while'] },
-      solution: `declare -A old; while read -r hash path; do old[$path]=$hash; done < ${BASE}; while read -r hash path; do if [ -n "\${old[$path]}" ] && [ "\${old[$path]}" != "$hash" ]; then echo "CHANGED $path"; fi; done < ${TODAY}`,
+      md: `**Drill 3.** The heart of Case 7, as a script. Write \`${CHANGED}\` with \`nano\` (or a heredoc). First load the baseline into \`old\`: the lines from the ordering exercise, without the \`echo\`. Then loop over \`${TODAY}\` the same way, and print \`CHANGED PATH\` for every path that is in \`old\` with a different hash. Run it with \`bash ${CHANGED}\`.`,
+      check: { output: 'CHANGED /var/www/html/index.html\n', fs: [{ path: CHANGED, contains: 'old[' }] },
+      solution: `cat > ${CHANGED} <<'EOF'\n${CHANGED_SH}EOF\nbash ${CHANGED}`,
       hints: [
-        `Part one: \`declare -A old; while read -r hash path; do old[$path]=$hash; done < ${BASE}\``,
-        `Part two reads \`${TODAY}\` with the same \`read -r hash path\`.`,
-        'Inside it: `if [ -n "${old[$path]}" ] && [ "${old[$path]}" != "$hash" ]; then echo "CHANGED $path"; fi`',
+        `\`nano ${CHANGED}\`. Lines 1–4 are the ordering exercise: \`declare -A old\`, then the \`while read -r hash path\` loop that fills it, ending \`done < ${BASE}\`.`,
+        `Lines 5–9 are a second \`while read -r hash path; do … done < ${TODAY}\`.`,
+        `Inside it: \`if [ -n "\${old[$path]}" ] && [ "\${old[$path]}" != "$hash" ]; then echo "CHANGED $path"; fi\`. Save & close, then \`bash ${CHANGED}\`.`,
       ],
       explain:
-        'Only `index.html`. `shell.php` has no entry in `old`, so it’s skipped here and left for `comm -13`; `robots.txt` never appears in today’s list, so it’s left for `comm -23`. Three findings, three tools, no overlap. Put them in one script with a summary line and an exit status, and you have Case 7.',
+        'Only `index.html`. `shell.php` has no entry in `old`, so it’s skipped here and left for `comm -13`; `robots.txt` never appears in today’s list, so it’s left for `comm -23`. Three findings, three tools, no overlap. Add the two `comm` lines, a summary line and an exit status to this script, and you have Case 7.',
     },
     {
       kind: 'task',

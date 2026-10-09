@@ -154,7 +154,7 @@ The \`{20,}\` stops ordinary short words from matching.`,
       check: { output: 'reference', uses: ['grep'] },
       solution: 'grep -r base64 /etc/cron.d',
       hints: ['`-r` makes grep search a whole folder.', '`grep -r base64 /etc/cron.d`'],
-      explain: 'One hit, in a file called `sysupdate`: a name picked to look boring. Read it left to right: every 15 minutes, as **root**, decode a blob and pipe it straight into `bash`. Resetting Raj’s password didn’t touch this. It runs whether anyone logs in or not.',
+      explain: 'One hit, in a file called `sysupdate`: a name picked to look boring. (Yesterday’s list spelled it `.sysupdate`. A leading dot would hide it from plain `ls`, but cron ignores any file in `/etc/cron.d` with a dot in its name, so a job that has to run can’t hide that way.) Read it left to right: every 15 minutes, as **root**, decode a blob and pipe it straight into `bash`. Resetting Raj’s password didn’t touch this. It runs whether anyone logs in or not.',
     },
     {
       kind: 'task',
@@ -209,10 +209,11 @@ A filename is a label anyone can change; programs read the bytes. \`head -c 4 FI
       kind: 'task',
       id: 'magic',
       md: 'Someone on web01 downloaded an “invoice”. Go into `~/evidence/downloads` and show the **first 4 bytes** of `invoice.pdf` in hex.',
-      check: { output: 'reference', uses: ['head', 'xxd'], cwd: '~/evidence/downloads' },
+      // the full dump (`xxd`, `xxd -u`, `xxd -c 4`) or plain hex (`xxd -p`), but only the first 4 bytes
+      check: { output: { regex: '^(00000000: )?4d ?5a ?00 ?00( +MZ\\.\\.)?$', flags: 'i' }, uses: ['head', 'xxd'], cwd: '~/evidence/downloads' },
       solution: 'cd ~/evidence/downloads && head -c 4 invoice.pdf | xxd',
       hints: ['`head -c 4` keeps the first 4 bytes (`-c` counts bytes, not lines).', '`cd ~/evidence/downloads`, then `head -c 4 invoice.pdf | xxd`'],
-      explain: '`4d5a`: **MZ**, the start of a Windows program. A real PDF begins `2550 4446`. The dots on the right are bytes with no printable character. Now run `file *` to see every download’s true type at once: `report.pdf` really is a PDF, while `invoice.pdf` is a program in a PDF’s name.',
+      explain: '`4d5a`: **MZ**, the start of a Windows program. A real PDF begins `2550 4446`. In the full `xxd` view, the dots on the right are bytes with no printable character. Now run `file *` to see every download’s true type at once: `report.pdf` really is a PDF, while `invoice.pdf` is a program in a PDF’s name.',
     },
     {
       kind: 'read',
@@ -286,13 +287,13 @@ The names in the list are relative, so go into \`~/evidence/release\` (the tool-
     {
       kind: 'task',
       id: 'd-safe',
-      md: `**Drill 4.** Not everything after \`cmd=\` in a log is base64. An assignment like \`out=$(cmd)\` takes on cmd’s exit status, so \`if out=$(…); then\` tests and captures in one go.
+      md: `**Drill 4.** Not everything after \`cmd=\` in a log is clean base64. In \`Y2F0IC9ldGMvaG9zdHM%3D\`, the final \`=\` arrived URL-encoded as \`%3D\`, and \`base64 -d\` can print part of a value before it fails. So trust the exit status, not the text. An assignment like \`out=$(cmd)\` takes on cmd’s exit status, so \`if out=$(…); then\` tests and captures in one go.
 
-Set \`p='..%2f..%2fetc%2fpasswd'\`. Then print \`decoded: TEXT\` if \`base64 -d\` succeeds, or \`not base64\` if it fails — with no error message on screen.`,
-      check: { output: 'not base64\n', nodes: ['if', 'cmdsub'], uses: ['base64'] },
-      solution: "p='..%2f..%2fetc%2fpasswd'; if out=$(printf '%s' \"$p\" | base64 -d 2>/dev/null); then echo \"decoded: $out\"; else echo 'not base64'; fi",
+Set \`p='Y2F0IC9ldGMvaG9zdHM%3D'\`. Then print \`decoded: TEXT\` if \`base64 -d\` succeeds, or \`not base64\` if it fails — with no error message on screen.`,
+      check: { output: 'not base64\n', nodes: ['if', 'cmdsub', 'redirect'], uses: ['base64'] },
+      solution: "p='Y2F0IC9ldGMvaG9zdHM%3D'; if out=$(printf '%s' \"$p\" | base64 -d 2>/dev/null); then echo \"decoded: $out\"; else echo 'not base64'; fi",
       hints: ['`2>/dev/null` throws the error message away.', "Feed the value in with `printf '%s' \"$p\"`: it prints it exactly, with no newline.", "`if out=$(printf '%s' \"$p\" | base64 -d 2>/dev/null); then echo \"decoded: $out\"; else echo 'not base64'; fi`"],
-      explain: '`..%2f` is a URL-encoded `../`: someone climbing out of the web folder, not a command. When `base64 -d` hits a bad character it prints what it decoded so far, then fails — so check the status before you print anything. This one line is the heart of Case 4.',
+      explain: '`base64 -d` decoded `cat /etc/hosts`, hit the `%` and failed with status 1. Test whether `$out` is empty instead, and that half-decoded text lands in your report as if it were the whole payload. The web01 log also has `..%2f..%2fetc%2fpasswd`: a URL-encoded `../`, someone climbing out of the web folder, not a command. Check the status before you print anything: this one line is the heart of Case 4.',
     },
   ],
   debrief: {

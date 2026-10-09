@@ -54,20 +54,52 @@ const PROXY_SH = `# proxy.sh -- sourced by every login shell
 export http_proxy=http://proxy.web03.example:3128
 `;
 
-/** web03's auth.log: a brute force from 192.0.2.150, then an accepted password for deploy. */
-export const WEB03_AUTH = authLog({
-  seed: 21,
-  host: 'web03',
-  noise: 24,
-  start: Date.UTC(2026, 2, 12, 0, 0, 0),
-  end: Date.UTC(2026, 2, 14, 12, 0, 0),
-  attackers: [{ ip: '192.0.2.150', count: 25, users: ['root', 'admin', 'deploy'], at: Date.UTC(2026, 2, 14, 6, 0), spreadMin: 30, success: 'deploy' }],
-});
+/**
+ * authLog() writes every name it doesn't know (it knows root, analyst, mara, raj, backup) as an
+ * "invalid user". For an account that exists on the box, rewrite its lines the way sshd logs them.
+ */
+export function realAccount(log: string, user: string, uid: number): string {
+  return log
+    .split('\n')
+    .filter((l) => !l.includes(`]: Invalid user ${user} from `))
+    .join('\n')
+    .replaceAll(`Failed password for invalid user ${user} from `, `Failed password for ${user} from `)
+    .replaceAll(`session opened for user ${user}(uid=1000)`, `session opened for user ${user}(uid=${uid})`);
+}
+
+/**
+ * web03's auth.log: a brute force from 192.0.2.150, then an accepted password for deploy.
+ * Two more sources fail and never get in: the Week 1 attacker 203.0.113.7 (14) and 198.51.100.140 (6).
+ * The top three counts differ, so "worst first, top 3" has no ties.
+ */
+export const WEB03_AUTH = realAccount(
+  authLog({
+    seed: 21,
+    host: 'web03',
+    noise: 24,
+    start: Date.UTC(2026, 2, 12, 0, 0, 0),
+    end: Date.UTC(2026, 2, 14, 12, 0, 0),
+    attackers: [
+      { ip: '192.0.2.150', count: 25, users: ['root', 'admin', 'deploy'], at: Date.UTC(2026, 2, 14, 6, 0), spreadMin: 30, success: 'deploy' },
+      { ip: '203.0.113.7', count: 14, users: ['root'], at: Date.UTC(2026, 2, 12, 21, 10), spreadMin: 12 },
+      { ip: '198.51.100.140', count: 6, users: ['root', 'admin'], at: Date.UTC(2026, 2, 13, 15, 40), spreadMin: 8 },
+    ],
+  }),
+  'deploy',
+  1003,
+);
+
+/** web03's /etc/crontab: the base file, with web03's own root jobs in place of the workstation's backup line. */
+export function web03Crontab(vfs: VFS) {
+  const crontab = (vfs.tryRead('/etc/crontab') ?? '').replace('backup  /usr/local/bin/nightly-backup.sh', 'root    /usr/local/bin/backup.sh');
+  put(vfs, '/etc/crontab', crontab + '*/5 *   * * *   root    /usr/local/bin/healthcheck.sh\n', { mtime: DEPLOY });
+}
 
 /** Build the compromised web03 onto a base system. Shared by the mission and the capstone case. */
 export function web03(vfs: VFS) {
   put(vfs, '/etc/hostname', 'web03\n', { mtime: DEPLOY });
   put(vfs, '/etc/hosts', '127.0.0.1\tlocalhost\n127.0.1.1\tweb03\n10.20.0.21\tweb01.halden.internal web01\n10.20.0.22\tdb01.halden.internal db01\n', { mtime: DEPLOY });
+  web03Crontab(vfs);
 
   // accounts: a legitimate "deploy" service account, and the attacker's UID-0 backdoor "sysadm"
   const passwd = vfs.tryRead('/etc/passwd') ?? '';
@@ -168,6 +200,8 @@ Work through web03 with me by hand this morning. Then write the script that does
       check: { output: 'reference', uses: ['grep', 'awk', 'sort', 'uniq'] },
       solution: "grep \"Failed password\" /var/log/auth.log | awk '{print $(NF-3)}' | sort | uniq -c | sort -rn | head -3",
       hints: ["`grep \"Failed password\" FILE | awk '{print $(NF-3)}' | sort | uniq -c | sort -rn | head -3`"],
+      explain:
+        'Three sources stand out from the background noise: `192.0.2.150` with 25, `203.0.113.7` with 14 (the Week 1 attacker, trying its luck again) and `198.51.100.140` with 6. Failures only tell you who knocked. Next: did anyone get in?',
     },
     {
       kind: 'task',
@@ -190,8 +224,8 @@ Work through web03 with me by hand this morning. Then write the script that does
     {
       kind: 'task',
       id: 'unapproved',
-      md: 'Compare the accounts that have a login shell with the approved list in `~/triage/approved_users.txt`. Print the shell accounts that are **not** on it.\n\n`grep -vxFf LIST` keeps lines that are not (`-v`) an exact whole-line (`-x`) match for any fixed string (`-F`) in the file LIST (`-f`).',
-      check: { output: 'sysadm\n', uses: ['awk', 'grep'] },
+      md: 'An account **has a login shell** when field 7 of `/etc/passwd` ends in `sh` (`/bin/bash`); service accounts get `/usr/sbin/nologin`. In awk, `~` means “matches this regex”, so `$7 ~ /sh$/` picks out the shell accounts.\n\nCompare the shell accounts with the approved list in `~/triage/approved_users.txt`, and print the ones that are **not** on it. `grep -vxFf LIST` keeps lines that are not (`-v`) an exact whole-line (`-x`) match for any fixed string (`-F`) in the file LIST (`-f`).',
+      check: { output: 'sysadm\n', uses: ['grep'] },
       solution: "awk -F: '$7 ~ /sh$/ {print $1}' /etc/passwd | grep -vxFf ~/triage/approved_users.txt",
       hints: ["Shell accounts: `awk -F: '$7 ~ /sh$/ {print $1}' /etc/passwd`", 'Then `| grep -vxFf ~/triage/approved_users.txt`.'],
     },
@@ -219,7 +253,7 @@ Work through web03 with me by hand this morning. Then write the script that does
       check: { output: 'reference', uses: ['sha256sum'], status: 1 },
       solution: 'sha256sum -c ~/triage/baseline.sha256',
       hints: ['`sha256sum -c BASELINE`'],
-      explain: '`backup.sh` changed — and it runs nightly as root. Let’s see what else is in that folder that the baseline doesn’t know about.',
+      explain: '`backup.sh` changed — and `/etc/crontab` runs it every night as root. Let’s see what else is in that folder that the baseline doesn’t know about.',
     },
     {
       kind: 'quiz',
