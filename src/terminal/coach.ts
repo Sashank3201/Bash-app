@@ -3,21 +3,27 @@
 import { BUILTINS } from '../shell/builtins';
 import { COMMANDS } from '../shell/commands/registry';
 
-function lev(a: string, b: string): number {
+/** Edit distance where swapping two neighbouring letters counts as one edit (the commonest phone typo). */
+function dist(a: string, b: string): number {
   const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
   for (let j = 1; j <= b.length; j++) dp[0][j] = j;
   for (let i = 1; i <= a.length; i++)
-    for (let j = 1; j <= b.length; j++)
+    for (let j = 1; j <= b.length; j++) {
       dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) dp[i][j] = Math.min(dp[i][j], dp[i - 2][j - 2] + 1);
+    }
   return dp[a.length][b.length];
 }
 
+/** Everyday commands win ties, so `sl` suggests `ls`, not `nl`. */
+const COMMON = ['ls', 'cd', 'cat', 'echo', 'grep', 'pwd', 'head', 'tail', 'sort', 'uniq', 'wc', 'cut', 'awk', 'sed', 'find', 'chmod', 'touch', 'mkdir', 'rm', 'cp', 'mv', 'less', 'man', 'nano', 'date', 'whoami'];
+
 function closestCommand(name: string): string | null {
-  const all = [...Object.keys(COMMANDS), ...Object.keys(BUILTINS)];
+  const all = [...COMMON, ...Object.keys(COMMANDS), ...Object.keys(BUILTINS)];
   let best: string | null = null;
   let bestD = 3;
   for (const c of all) {
-    const d = lev(name.toLowerCase(), c);
+    const d = dist(name.toLowerCase(), c);
     if (d < bestD) {
       bestD = d;
       best = c;
@@ -56,6 +62,9 @@ export function coachHint(src: string, stderr: string, status: number): string |
     if (/^(\.\/|\/)\S+/.test(trimmed) || /bash: \.\//.test(err)) return 'To run a script directly it must be executable. Run `chmod +x yourscript.sh` first — or start it with `bash yourscript.sh`.';
     if (/^cd\b/.test(trimmed)) return 'You don\'t have execute (x) permission on that directory, so you can\'t enter it. Use `ls -ld` on it to see who can.';
     return 'Your user isn\'t allowed to do that. Check the file\'s permissions with `ls -l`. If it\'s a system file, an admin would use `sudo`.';
+  }
+  if (/listed files? could not be read/.test(err)) {
+    return 'A file named in the checksum list is missing. In an integrity check that is a finding, not a typo: the file was deleted or moved since the baseline was taken.';
   }
   if (/No such file or directory/.test(err)) {
     if (/^cd\b/.test(trimmed)) return 'That folder isn\'t here. Use `ls` to see what exists, and remember names are case-sensitive. `pwd` shows where you are.';

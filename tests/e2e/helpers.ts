@@ -64,6 +64,8 @@ async function clickContinue(page: Page) {
 }
 
 async function solveOrder(page: Page, lines: string[]) {
+  // the step animates in: wait until every line is on screen before reading the order
+  await expect(page.locator('[class*="orderItem"]')).toHaveCount(lines.length);
   for (let target = 0; target < lines.length; target++) {
     for (let guard = 0; guard < 20; guard++) {
       const texts = await page.locator('[class*="orderItem"] code').allInnerTexts();
