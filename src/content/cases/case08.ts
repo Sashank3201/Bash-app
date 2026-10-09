@@ -2,7 +2,6 @@ import { defineFixture } from '../fixtures';
 import { GID, home, homeDir, put, UID } from '../fixtures/base';
 import { authLog } from '../fixtures/gen';
 import { web03 } from '../missions/day21';
-import type { VFS } from '../../shell/vfs';
 import type { CaseFile } from '../types';
 
 const DEPLOY = Date.UTC(2026, 2, 9, 17, 40, 0);
