@@ -204,6 +204,12 @@ function Player({ mission }: { mission: Mission }) {
   const needsTerm = step && (step.kind === 'task' || step.kind === 'example');
   useEffect(() => {
     if (needsTerm) setTermOpen(true);
+    else {
+      // Moving on from a task: put the phone keyboard away so the whole step (and Continue) shows.
+      const el = document.activeElement;
+      if (el instanceof HTMLElement && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) el.blur();
+      setKbd(false);
+    }
   }, [needsTerm, idx]);
 
   const canContinue = (() => {
