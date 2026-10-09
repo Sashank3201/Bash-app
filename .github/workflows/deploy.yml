@@ -39,8 +39,6 @@ jobs:
         env:
           LC_ALL: C.UTF-8
           TZ: UTC
-          # Week 3 is still being written; remove once every day and case is complete.
-          ALLOW_STUBS: '1'
       - name: Build
         run: npm run build
         env:

