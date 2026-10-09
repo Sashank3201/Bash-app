@@ -198,6 +198,9 @@ samp {
   border: 1px solid var(--hairline);
   color: var(--ink);
   white-space: break-spaces;
+  /* a code span that wraps keeps its border and padding on every line */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .prose pre {
