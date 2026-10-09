@@ -756,7 +756,8 @@ export class Shell {
     }
     const op = p.op;
     const isNull = !isSet || (multi ? vals.length === 0 || (vals.length === 1 && vals[0] === '') : vals[0] === '');
-    const display = idx !== undefined ? `${name}[${idx}]` : name;
+    // bash names an unset bare positional `$1`, but `${1}`, `${10}` and named variables without the `$`
+    const display = idx !== undefined ? `${name}[${idx}]` : !p.braced && /^[0-9]$/.test(name) ? `$${name}` : name;
 
     if (!op || op.startsWith('#') || op.startsWith('%') || op.startsWith('/') || op.startsWith('^') || op.startsWith(',') || op === ':') {
       if (!isSet && this.opts.nounset && !multi) throw new ExpansionError(`${display}: unbound variable`, 1, true);

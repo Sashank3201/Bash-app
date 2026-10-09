@@ -317,4 +317,14 @@ inc; shadow; echo "outside: $count"`,
     name: 'find -xdev and -ctime',
     src: `mkdir -p d && touch -d "2026-01-01 10:00" d/old && touch -d "2026-01-01 10:00" d/perm && chmod 600 d/perm; find d -xdev -type f -name perm; find d -type f -ctime -1 | sort; echo "--"; find d -type f -mtime -1; [ "$(stat -c %Z d/perm)" -gt "$(stat -c %Y d/perm)" ] && echo "ctime moved"`,
   },
+  {
+    name: 'set -u names an unset positional like bash does',
+    files: {
+      'bare.sh': '#!/bin/bash\nset -u\necho "log: $1"\n',
+      'braced.sh': '#!/bin/bash\nset -u\necho "log: ${1}"\n',
+      'trim.sh': '#!/bin/bash\nset -u\necho "${2#x}"\n',
+      'named.sh': '#!/bin/bash\nset -u\necho "$nope"\n',
+    },
+    src: `for s in bare braced trim named; do bash $s.sh 2>&1; echo "$s $?"; done; bash trim.sh one 2>&1`,
+  },
 ];
