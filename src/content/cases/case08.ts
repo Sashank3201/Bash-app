@@ -1,7 +1,7 @@
 import { defineFixture } from '../fixtures';
 import { GID, home, homeDir, put, UID } from '../fixtures/base';
 import { authLog } from '../fixtures/gen';
-import { web03 } from '../missions/day21';
+import { realAccount, web03, web03Crontab } from '../missions/day21';
 import type { CaseFile } from '../types';
 
 const DEPLOY = Date.UTC(2026, 2, 9, 17, 40, 0);
@@ -38,6 +38,7 @@ const CLEAN_BASELINE = [
 
 defineFixture('case-capstone-clean', (vfs) => {
   put(vfs, '/etc/hostname', 'web03\n', { mtime: DEPLOY });
+  web03Crontab(vfs);
   const passwd = vfs.tryRead('/etc/passwd') ?? '';
   put(vfs, '/etc/passwd', passwd + 'deploy:x:1003:1003:Deploy Service,,,:/home/deploy:/bin/bash\n', { mtime: DEPLOY });
   put(vfs, '/var/log/auth.log', authLog({ seed: 55, host: 'web03', noise: 20, start: Date.UTC(2026, 2, 12, 0, 0, 0), end: Date.UTC(2026, 2, 14, 12, 0, 0) }), {
@@ -56,9 +57,33 @@ defineFixture('case-capstone-clean', (vfs) => {
 });
 
 // Hidden: a different machine (app02), compromised differently, so hard-coding web03 fails.
-// Different source IP and breached user, a different rogue account name plus an extra
-// unapproved user, a different payload, a changed/added/removed set in /usr/local/bin, and
-// a world-writable file under /var instead of /etc.
+// Logins: two break-ins. 198.51.100.66 (18 failures, then ansible) must come before 192.0.2.201
+// (exactly 10, then webdev), although 192.0.2.201 sorts first and attacked first. Two near misses
+// must stay out: 198.51.100.140 (12 failures, never got in) and Mara mistyping her password
+// three times before logging in. Accounts: the unapproved webdev comes before the rogue UID-0 svc
+// in /etc/passwd, the reverse of alphabetical order. Plus a different payload, a changed/added/
+// removed set in /usr/local/bin, and a world-writable file under /var instead of /etc.
+const V_AUTH = realAccount(
+  realAccount(
+    authLog({
+      seed: 66,
+      host: 'app02',
+      noise: 22,
+      start: Date.UTC(2026, 2, 12, 0, 0, 0),
+      end: Date.UTC(2026, 2, 14, 12, 0, 0),
+      attackers: [
+        { ip: '198.51.100.66', count: 18, users: ['root', 'oracle', 'ansible'], at: Date.UTC(2026, 2, 14, 5, 0), spreadMin: 25, success: 'ansible' },
+        { ip: '192.0.2.201', count: 10, users: ['webdev'], at: Date.UTC(2026, 2, 13, 21, 40), spreadMin: 15, success: 'webdev' },
+        { ip: '198.51.100.140', count: 12, users: ['root', 'admin'], at: Date.UTC(2026, 2, 13, 2, 15), spreadMin: 10 },
+        { ip: '10.20.0.8', count: 3, users: ['mara'], at: Date.UTC(2026, 2, 13, 8, 55), spreadMin: 1, success: 'mara' },
+      ],
+    }),
+    'ansible',
+    1004,
+  ),
+  'webdev',
+  1005,
+);
 const V_DEPLOY_HOOK = `#!/bin/bash
 # deploy-hook.sh -- run after each release
 systemctl reload apache2
@@ -86,11 +111,11 @@ defineFixture('case-capstone-variant', (vfs) => {
     '/etc/passwd',
     passwd +
       'ansible:x:1004:1004:Ansible,,,:/home/ansible:/bin/bash\n' +
-      'guest:x:1005:1005:Guest:/home/guest:/bin/bash\n' +
+      'webdev:x:1005:1005:Web contractor,,,:/home/webdev:/bin/bash\n' +
       'svc:x:0:0:svc:/root:/bin/bash\n',
     { mtime: BREACH },
   );
-  put(vfs, '/var/log/auth.log', authLog({ seed: 66, host: 'app02', noise: 22, start: Date.UTC(2026, 2, 12, 0, 0, 0), end: Date.UTC(2026, 2, 14, 12, 0, 0), attackers: [{ ip: '198.51.100.66', count: 18, users: ['root', 'oracle', 'ansible'], at: Date.UTC(2026, 2, 14, 5, 0), spreadMin: 25, success: 'ansible' }] }), {
+  put(vfs, '/var/log/auth.log', V_AUTH, {
     mode: 0o640,
     uid: UID.syslog,
     gid: GID.adm,
@@ -280,7 +305,7 @@ I’ll run it on web03, on a clean twin of web03 from before any of this started
     '**Accounts:** `UID0 NAME` for every account except `root` with UID 0 (field 3), in `/etc/passwd` order. Then `UNAPPROVED NAME` for every account whose login shell (field 7) ends in `sh` and whose name is **not** a line in `~/triage/approved_users.txt`, in `/etc/passwd` order. (A rogue root account trips both checks — that redundancy is the point.)',
     '**Persistence:** for each file in `/etc/cron.d/` that contains a base64 blob (20+ base64 characters), `CRON FILE: PAYLOAD`, where PAYLOAD is the blob decoded. Files sorted by name; decode to read, never run.',
     '**Integrity:** compare `/usr/local/bin` with the baseline `~/triage/baseline.sha256` (`HASH  PATH` lines). `CHANGED PATH` for a path in both whose hash differs, then `ADDED PATH` for a path only on disk, then `REMOVED PATH` for a path only in the baseline. Each group sorted by path; dotfiles count.',
-    '**Permissions:** `WORLD-WRITABLE PATH` for each world-writable regular file under `/etc /usr /var /home` (sorted), then `SUID PATH` for each SUID regular file anywhere under `/` that is **not** one of `/usr/bin/sudo /usr/bin/passwd /usr/bin/chsh /usr/bin/mount /usr/bin/su` (sorted). The three `find` sweeps run under `sudo`, with nothing on stderr.',
+    '**Permissions:** `WORLD-WRITABLE PATH` for each world-writable regular file under `/etc /usr /var /home` (sorted), then `SUID PATH` for each SUID regular file anywhere under `/` that is **not** one of `/usr/bin/sudo /usr/bin/passwd /usr/bin/chsh /usr/bin/mount /usr/bin/su` (sorted). Both `find` sweeps run under `sudo`, with nothing on stderr.',
     '**Verdict:** count every finding line from the five sections. If the total is above 0: `COMPROMISED (N findings)` and **exit 1**. If it is 0: `CLEAN (0 findings)` and **exit 0**.',
   ],
   usage: 'bash ~/cases/triage.sh',
@@ -309,7 +334,7 @@ COMPROMISED (8 findings)`,
     { name: 'Hidden: app02, compromised differently', args: [], fixture: 'case-capstone-variant', check: { output: 'reference' } },
     { name: 'The report file is written with the verdict', args: [], check: { fs: [{ path: '~/reports/incident-0x21.txt', contains: 'COMPROMISED (8 findings)' }] } },
     { name: 'OUTFILE argument is honoured', args: ['/home/analyst/triage/report.txt'], check: { output: 'reference', fs: [{ path: '~/triage/report.txt', contains: 'INCIDENT REPORT: web03' }] } },
-    { name: 'Two arguments → usage, exit 2', args: ['a', 'b'], check: { status: 2 } },
+    { name: 'Two arguments → usage on stderr only, exit 2', run: 'bash "$SCRIPT" a b 2>/dev/null; echo "exit $?"', check: { output: 'exit 2\n' } },
   ],
   solution: SOLUTION,
   walkthrough: `**How it works**
@@ -317,7 +342,7 @@ COMPROMISED (8 findings)`,
 - **Six functions, one per section.** Each \`*_f\` producer prints only its finding lines. \`section\` prints the \`== NAME ==\` header, swaps in \`none\` when the producer prints nothing, and adds the line count to \`findings\`. That one helper is why every empty section looks the same and why the verdict can simply read a running total.
 - **Write once, print once.** The whole report is generated inside \`{ … } > "$out"\`, a brace group — *not* a subshell — so \`findings\` survives to the verdict line. Then \`cat "$out"\` echoes the file to stdout, so the saved report and the printed one can’t drift apart.
 - **Logins** is Day 14’s detector: rank \`$(NF-3)\` per IP, keep the ones at 10 or more, and for each, look for an \`Accepted\` line \`from $ip \` (the trailing space stops \`…2\` matching \`…23\`). \`$9\` is the user who got in.
-- **Accounts** checks the box two ways. \`awk\` on field 3 finds UID 0 whatever the name; \`grep -vxFf\` (Day 18’s \`-F\`/\`-f\`, with \`-x\` for whole-line and \`-v\` to invert) keeps the shell accounts that aren’t on the approved list. A backdoor root account with a shell is both — and we report it twice on purpose.
+- **Accounts** checks the box two ways. \`awk\` on field 3 finds UID 0 whatever the name; \`grep -vxFf\` (Day 16’s \`-F\`/\`-f\`, with \`-x\` for whole-line and \`-v\` to invert) keeps the shell accounts that aren’t on the approved list. A backdoor root account with a shell is both — and we report it twice on purpose.
 - **Persistence** pulls the blob with Day 16’s regex and decodes it with \`base64 -d\`. The result goes into a variable, never into \`bash\`. \`2>/dev/null || continue\` quietly skips a cron file whose “blob” wasn’t really base64.
 - **Integrity** is Day 20 in two associative arrays: load the baseline into \`base\`, hash the folder into \`cur\`, then three passes — same path with a different hash is \`CHANGED\`, only-in-\`cur\` is \`ADDED\`, only-in-\`base\` is \`REMOVED\`. \`find … -exec sha256sum\` is used instead of \`*\` so the hidden \`.helper\` isn’t missed.
 - **Permissions** is Day 18 under \`sudo\`, so no folder is skipped: \`-perm -0002 -type f\` for world-writable files, \`-perm -4000 -type f\` for SUID, with the five expected programs filtered out by a \`case\`.

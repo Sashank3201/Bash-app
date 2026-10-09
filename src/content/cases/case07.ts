@@ -180,12 +180,12 @@ esac
   tests: [
     { name: 'The web01 copy against the Mar 10 baseline', args: ['check', '/var/www/html', `${BASE}/baseline.sha256`], check: { output: 'reference' } },
     {
-      name: 'init writes a sorted sha256sum baseline',
+      name: 'init writes a sha256sum baseline',
       run: `bash "$SCRIPT" init /var/www/html ${BASE}/today.sha256 && cat ${BASE}/today.sha256`,
       check: { output: 'reference', fs: [{ path: '~/integrity/today.sha256', contains: '  /var/www/html/uploads/Halden brochure.pdf' }] },
     },
     {
-      name: 'Hidden: init on a nested tree, then check it untouched',
+      name: 'Hidden: init on a nested tree, sorted by path, then check it untouched',
       run: `bash "$SCRIPT" init /srv/site ${BASE}/site.sha256 && cut -c 67- ${BASE}/site.sha256 && bash "$SCRIPT" check /srv/site ${BASE}/site.sha256`,
       fixture: 'case-integrity-site',
       check: { output: 'reference' },
@@ -197,7 +197,7 @@ esac
       fixture: 'case-integrity-site',
       check: { output: 'reference' },
     },
-    { name: 'No arguments → exit 2', args: [], check: { status: 2 } },
+    { name: 'No arguments → usage on stderr only, exit 2', run: 'bash "$SCRIPT" 2>/dev/null; echo "exit $?"', check: { output: 'exit 2\n' } },
     { name: 'Unknown command “verify” → exit 2', args: ['verify', '/var/www/html', `${BASE}/baseline.sha256`], check: { status: 2 } },
     { name: 'Missing BASELINE argument → exit 2', args: ['check', '/var/www/html'], check: { status: 2 } },
     {
