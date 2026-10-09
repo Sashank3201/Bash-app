@@ -107,8 +107,8 @@
 }
 
 .locked .border {
-  filter: blur(0.3px);
-  opacity: 0.45;
+  filter: blur(2px);
+  opacity: 0.4;
 }
 
 .overlay {
@@ -121,6 +121,19 @@
   gap: 6px;
   text-align: center;
   padding: 24px;
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 320px;
+  padding: 22px 24px 20px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-l);
+  background: var(--paper);
+  box-shadow: var(--shadow-2);
 }
 
 .overlay b {

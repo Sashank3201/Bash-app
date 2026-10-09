@@ -51,13 +51,15 @@ export default function Certificate() {
         </div>
         {!complete && (
           <div className={s.overlay}>
-            <b>Not yet earned</b>
-            <span>{done < 21 ? `${done}/21 missions complete. Finish the course and close the capstone case to sign this certificate.` : 'One case left: close the capstone, Incident Triage, to sign this certificate.'}</span>
-            {done >= 21 && (
-              <Button size="small" onClick={() => navigate('/case/capstone')} iconRight="arrowRight">
-                Open the capstone
-              </Button>
-            )}
+            <div className={s.notice}>
+              <b>Not yet earned</b>
+              <span>{done < 21 ? `${done}/21 missions complete. Finish the course and close the capstone case to sign this certificate.` : 'One case left: close the capstone, Incident Triage, to sign this certificate.'}</span>
+              {done >= 21 && (
+                <Button size="small" onClick={() => navigate('/case/capstone')} iconRight="arrowRight">
+                  Open the capstone
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>
