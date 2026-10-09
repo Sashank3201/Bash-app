@@ -134,6 +134,8 @@ export class Shell {
   private curErr: Writer = NullWriter;
   private inTrap = false;
   sourceDepth = 0;
+  /** The streams of the test (`[ ]` / `[[ ]]`) being evaluated, so `-t FD` can ask whether FD is a terminal. */
+  testIO: IOCtx | null = null;
 
   constructor(o: ShellOptions) {
     this.vfs = o.vfs;
@@ -1202,7 +1204,14 @@ export class Shell {
         this.lineno = node.line;
         await this.tick();
         try {
-          const ok = await this.evalCond(node.expr);
+          const prevIO = this.testIO;
+          this.testIO = io;
+          let ok: boolean;
+          try {
+            ok = await this.evalCond(node.expr);
+          } finally {
+            this.testIO = prevIO;
+          }
           if (this.opts.xtrace) io.stderr.write(`+ [[ ... ]]\n`);
           return ok ? 0 : 1;
         } catch (e) {
@@ -1810,7 +1819,12 @@ export function fileTest(sh: Shell, op: string, arg: string): boolean {
   if (op === '-z') return arg === '';
   if (op === '-n') return arg !== '';
   if (op === '-o') return (sh.opts as Record<string, boolean>)[arg] ?? false;
-  if (op === '-t') return false;
+  if (op === '-t') {
+    const io = sh.testIO;
+    if (!io || !/^\d+$/.test(arg)) return false;
+    const fd = Number(arg);
+    return fd === 0 ? !!io.stdin.isTTY : fd === 1 ? !!io.stdout.isTTY : fd === 2 ? !!io.stderr.isTTY : false;
+  }
   const abs = normalize(arg, sh.cwd);
   if (arg === '') return false;
   const lnode = sh.vfs.tryLookup(abs, false);

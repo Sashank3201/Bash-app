@@ -228,8 +228,9 @@ async function hashCmd(c: CmdCtx): Promise<number> {
         if (!status && (!quiet || !ok)) c.stdout.write(`${target}: ${ok ? 'OK' : 'FAILED'}\n`);
       }
     }
-    if (failed && !status) c.stderr.write(`${c.name}: WARNING: ${failed} computed checksum${failed > 1 ? 's' : ''} did NOT match\n`);
+    // GNU reports unreadable files before mismatches
     if (missing && !status) c.stderr.write(`${c.name}: WARNING: ${missing} listed file${missing > 1 ? 's' : ''} could not be read\n`);
+    if (failed && !status) c.stderr.write(`${c.name}: WARNING: ${failed} computed checksum${failed > 1 ? 's' : ''} did NOT match\n`);
     return rc;
   }
   let rc = 0;

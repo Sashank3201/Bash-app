@@ -1,7 +1,7 @@
 // Filesystem commands: ls cat touch mkdir rm cp mv ln find chmod chown stat file tree ...
 
 import { posixRegex, globMatch } from '../pattern';
-import { FsError, VFS, basename, dirname, modeString, normalize, type Inode } from '../vfs';
+import { FsError, VFS, basename, ctimeOf, dirname, modeString, normalize, type Inode } from '../vfs';
 import { ansi, cmpC, parseOpts, readText, register, splitLines, withUsage, type CmdCtx } from './registry';
 import { lsTime, parseDate, strftime } from './time';
 
@@ -315,9 +315,12 @@ register(
         if (n) {
           if (c.cred.uid !== 0 && n.uid !== c.cred.uid && !c.vfs.can(n, c.cred, 'w')) throw new FsError('EACCES');
           n.mtime = when;
+          n.ctime = c.vfs.now(); // any metadata change moves ctime, even when mtime is backdated
         } else if (!flags.c) {
           c.vfs.writeFile(abs, '', { cred: c.cred });
-          c.vfs.lookup(abs).mtime = when;
+          const created = c.vfs.lookup(abs);
+          created.mtime = when;
+          created.ctime = c.vfs.now();
         }
       } catch (e) {
         c.err(`cannot touch '${f}': ${fsMsg(e)}`);
@@ -664,6 +667,7 @@ register(
         }
         const old = n.mode;
         n.mode = applyMode(n.mode, spec, n.type === 'dir')!;
+        n.ctime = c.vfs.now();
         if (verbose) {
           const o = { ...n, mode: old };
           c.stdout.write(`mode of '${p === abs ? f : p}' changed from ${(old & 0o7777).toString(8).padStart(4, '0')} (${modeString(o).slice(1)}) to ${(n.mode & 0o7777).toString(8).padStart(4, '0')} (${modeString(n).slice(1)})\n`);
@@ -733,6 +737,7 @@ function chownLike(kind: 'chown' | 'chgrp') {
         }
         if (uid !== undefined) n.uid = uid;
         if (gid !== undefined) n.gid = gid;
+        n.ctime = c.vfs.now();
         if (verbose) c.stdout.write(`changed ownership of '${p === abs ? f : p}' to ${spec}\n`);
       };
       if (recursive) walk(c.vfs, abs, apply);
@@ -784,6 +789,8 @@ register(
             case 'h': return String(linkCount(n));
             case 'y': return strftime(n.mtime, '%Y-%m-%d %H:%M:%S.000000000 +0000');
             case 'Y': return String(Math.floor(n.mtime / 1000));
+            case 'z': return strftime(ctimeOf(n), '%Y-%m-%d %H:%M:%S.000000000 +0000');
+            case 'Z': return String(Math.floor(ctimeOf(n) / 1000));
             case 'b': return String(blocks1k(c.vfs, n) * 2);
             case 'i': return '1048577';
             case '%': return '%';
@@ -799,7 +806,7 @@ register(
           `  Size: ${String(size).padEnd(10)}\tBlocks: ${String(blocks1k(c.vfs, n) * 2).padEnd(10)} IO Block: 4096   ${fileType(n)}\n` +
           `Device: 802h/2050d\tInode: 1048577     Links: ${linkCount(n)}\n` +
           `Access: (${perm.padStart(4, '0')}/${modeString(n)})  Uid: (${String(n.uid).padStart(5)}/${owner.padStart(8)})   Gid: (${String(n.gid).padStart(5)}/${group.padStart(8)})\n` +
-          `Access: ${ts}\nModify: ${ts}\nChange: ${ts}\n Birth: -\n`,
+          `Access: ${ts}\nModify: ${ts}\nChange: ${strftime(ctimeOf(n), '%Y-%m-%d %H:%M:%S.000000000 +0000')}\n Birth: -\n`,
       );
     }
     return status;
@@ -1095,6 +1102,11 @@ register('find', async (c) => {
   };
 
   let i = 0;
+  let firstTest = -1;
+  // GNU find: options like -maxdepth and -xdev apply globally, and it says so if they come after a test
+  const globalOpt = (opt: string) => {
+    if (firstTest >= 0) c.err(`warning: you have specified the global option ${opt} after the argument ${args[firstTest]}, but global options are not positional, i.e., ${opt} affects tests specified before it as well as those specified after it.  Please specify global options before other arguments.`);
+  };
   const peek = () => args[i];
   const parseOr = (): FindExpr => {
     let l = parseAnd();
@@ -1127,6 +1139,7 @@ register('find', async (c) => {
   };
   const parsePrimary = (): FindExpr => {
     const a = args[i++];
+    if (firstTest < 0 && a !== undefined && a.startsWith('-') && !['-maxdepth', '-mindepth', '-xdev', '-mount', '-depth', '-follow', '-noleaf'].includes(a)) firstTest = i - 1;
     switch (a) {
       case '(': {
         const e = parseOr();
@@ -1196,10 +1209,13 @@ register('find', async (c) => {
         return { t: 'test', fn: (_p, n) => n.type !== 'dir' && cmp(Math.ceil(c.vfs.size(n) / unit)) };
       }
       case '-mtime':
-      case '-mmin': {
+      case '-mmin':
+      case '-ctime':
+      case '-cmin': {
         const cmp = parseNum(need(a));
-        const div = a === '-mtime' ? 86400000 : 60000;
-        return { t: 'test', fn: (_p, n) => cmp(Math.floor((now - n.mtime) / div)) };
+        const div = a === '-mtime' || a === '-ctime' ? 86400000 : 60000;
+        const when = a[1] === 'c' ? ctimeOf : (n: Inode) => n.mtime;
+        return { t: 'test', fn: (_p, n) => cmp(Math.floor((now - when(n)) / div)) };
       }
       case '-newer': {
         const ref = lookup(c, need(a));
@@ -1219,10 +1235,17 @@ register('find', async (c) => {
       case '-false':
         return { t: 'test', fn: () => false };
       case '-maxdepth':
+        globalOpt(a);
         maxDepth = Number(need(a));
         return { t: 'test', fn: () => true };
       case '-mindepth':
+        globalOpt(a);
         minDepth = Number(need(a));
+        return { t: 'test', fn: () => true };
+      case '-xdev':
+      case '-mount':
+        // one filesystem in the simulator: nothing to skip
+        globalOpt(a);
         return { t: 'test', fn: () => true };
       case '-print':
       case '-print0':
@@ -1260,8 +1283,6 @@ register('find', async (c) => {
     return 1;
   }
 
-  const out: string[] = [];
-  const execQueue: { cmd: string[]; path: string }[] = [];
   let quit = false;
   const printfFmt = (fmt: string, p: string, n: Inode) =>
     fmt
@@ -1286,29 +1307,31 @@ register('find', async (c) => {
         return '';
       });
 
-  const evalE = (e: FindExpr, p: string, n: Inode, depth: number, prune: { v: boolean }): boolean => {
+  // Evaluated in walk order, like GNU find: output streams as it goes, and `-exec … ;` runs on the
+  // spot with its exit status as the test's truth value.
+  const evalE = async (e: FindExpr, p: string, n: Inode, depth: number, prune: { v: boolean }): Promise<boolean> => {
     switch (e.t) {
       case 'and':
-        return evalE(e.l, p, n, depth, prune) && evalE(e.r, p, n, depth, prune);
+        return (await evalE(e.l, p, n, depth, prune)) && (await evalE(e.r, p, n, depth, prune));
       case 'or':
-        return evalE(e.l, p, n, depth, prune) || evalE(e.r, p, n, depth, prune);
+        return (await evalE(e.l, p, n, depth, prune)) || (await evalE(e.r, p, n, depth, prune));
       case 'not':
-        return !evalE(e.e, p, n, depth, prune);
+        return !(await evalE(e.e, p, n, depth, prune));
       case 'test':
         return e.fn(p, n, depth);
       case 'action':
         switch (e.kind) {
           case 'print':
-            out.push(p + '\n');
+            c.stdout.write(p + '\n');
             return true;
           case 'print0':
-            out.push(p + '\0');
+            c.stdout.write(p + '\0');
             return true;
           case 'printf':
-            out.push(printfFmt(e.fmt!, p, n));
+            c.stdout.write(printfFmt(e.fmt!, p, n));
             return true;
           case 'ls':
-            out.push(`  1048577      ${blocks1k(c.vfs, n)} ${modeString(n)}   1 ${c.vfs.userName(n.uid).padEnd(8)} ${c.vfs.groupName(n.gid).padEnd(8)} ${String(c.vfs.size(n)).padStart(8)} ${lsTime(n.mtime, now)} ${p}\n`);
+            c.stdout.write(`  1048577      ${blocks1k(c.vfs, n)} ${modeString(n)}   1 ${c.vfs.userName(n.uid).padEnd(8)} ${c.vfs.groupName(n.gid).padEnd(8)} ${String(c.vfs.size(n)).padStart(8)} ${lsTime(n.mtime, now)} ${p}\n`);
             return true;
           case 'delete':
             try {
@@ -1324,15 +1347,19 @@ register('find', async (c) => {
           case 'quit':
             quit = true;
             return true;
-          case 'exec':
+          case 'exec': {
             if (e.plus) {
               let b = execBatches.find((x) => x.args === e.args);
               if (!b) execBatches.push((b = { args: e.args!, files: [] }));
               b.files.push(p);
               return true;
             }
-            execQueue.push({ cmd: e.args!.map((x) => x.replace(/\{\}/g, p)), path: p });
-            return true;
+            const st = await c.sh.invoke(
+              e.args!.map((x) => x.replace(/\{\}/g, p)),
+              { stdin: c.stdin, stdout: c.stdout, stderr: c.stderr },
+            );
+            return st === 0;
+          }
         }
     }
     return false;
@@ -1348,7 +1375,6 @@ register('find', async (c) => {
       continue;
     }
     const rec = (p: string, node: Inode, depth: number) => {
-      if (quit) return;
       results.push({ p, n: node, depth });
       if (node.type === 'dir' && depth < maxDepth) {
         if (!c.vfs.can(node, c.cred, 'r') || !c.vfs.can(node, c.cred, 'x')) {
@@ -1364,7 +1390,7 @@ register('find', async (c) => {
     rec(start, n, 0);
   }
 
-  // Evaluate in traversal order (prune handled by skipping descendants)
+  // Walk order; -prune is handled by skipping the pruned path's descendants.
   const pruned: string[] = [];
   for (const r of results) {
     if (quit) break;
@@ -1376,16 +1402,11 @@ register('find', async (c) => {
     if (pruned.some((pp) => r.p.startsWith(pp + '/'))) continue;
     if (r.depth < minDepth) continue;
     const prune = { v: false };
-    const ok = expr ? evalE(expr, r.p, r.n, r.depth, prune) : true;
+    const ok = expr ? await evalE(expr, r.p, r.n, r.depth, prune) : true;
     if (prune.v) pruned.push(r.p);
-    if (ok && !hasAction) out.push(r.p + '\n');
+    if (ok && !hasAction) c.stdout.write(r.p + '\n');
   }
 
-  c.stdout.write(out.join(''));
-  for (const q of execQueue) {
-    const st = await c.sh.invoke(q.cmd, { stdin: c.stdin, stdout: c.stdout, stderr: c.stderr });
-    if (st !== 0) status = 1;
-  }
   for (const b of execBatches) {
     const idx = b.args.indexOf('{}');
     const cmd = [...b.args.slice(0, idx), ...b.files, ...b.args.slice(idx + 1)];

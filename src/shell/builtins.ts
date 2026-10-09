@@ -163,6 +163,16 @@ function testExpr(sh: Shell, args: string[]): boolean {
 }
 
 async function testBuiltin(sh: Shell, argv: string[], io: IOCtx): Promise<number> {
+  const prevIO = sh.testIO;
+  sh.testIO = io;
+  try {
+    return await testBuiltinInner(sh, argv, io);
+  } finally {
+    sh.testIO = prevIO;
+  }
+}
+
+async function testBuiltinInner(sh: Shell, argv: string[], io: IOCtx): Promise<number> {
   let args = argv.slice(1);
   const name = argv[0];
   if (name === '[') {

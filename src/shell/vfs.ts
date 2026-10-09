@@ -8,6 +8,7 @@ export interface Inode {
   uid: number;
   gid: number;
   mtime: number; // ms since epoch
+  ctime?: number; // last status change (chmod/chown); falls back to mtime
   content?: string; // file
   children?: Map<string, Inode>; // dir
   target?: string; // link
@@ -59,6 +60,11 @@ export interface JsonNode {
   c?: string;
   ch?: Record<string, JsonNode>;
   to?: string;
+}
+
+/** When the inode last changed: content (mtime) or status (chmod/chown), whichever is later. */
+export function ctimeOf(n: Inode): number {
+  return Math.max(n.ctime ?? 0, n.mtime);
 }
 
 /** Splits an absolute path into components. */

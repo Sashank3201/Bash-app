@@ -308,4 +308,13 @@ inc; shadow; echo "outside: $count"`,
     name: 'mktemp makes private files and folders',
     src: `f=$(mktemp); d=$(mktemp -d); stat -c '%a %F' "$f" "$d"; case $f in /tmp/tmp.*) echo "file under /tmp";; esac; g=$(mktemp /tmp/scan.XXXXXX); [ -f "$g" ] && echo "template ok \${#g}"; rm -r "$f" "$d" "$g"`,
   },
+  {
+    name: 'find -exec is a test and runs in walk order',
+    files: { 'd/notes.txt': 'nothing here\n', 'd/secret.txt': 'password=hunter2\n', 'e/only.txt': 'x\n' },
+    src: `find d -name '*.txt' -exec grep -q password {} \\; -print; find e -print -exec echo "seen {}" \\;; find d -name '*.txt' ! -exec grep -q password {} \\; -print; echo "status $?"`,
+  },
+  {
+    name: 'find -xdev and -ctime',
+    src: `mkdir -p d && touch -d "2026-01-01 10:00" d/old && touch -d "2026-01-01 10:00" d/perm && chmod 600 d/perm; find d -xdev -type f -name perm; find d -type f -ctime -1 | sort; echo "--"; find d -type f -mtime -1; [ "$(stat -c %Z d/perm)" -gt "$(stat -c %Y d/perm)" ] && echo "ctime moved"`,
+  },
 ];

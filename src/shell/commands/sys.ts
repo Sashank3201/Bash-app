@@ -472,7 +472,14 @@ register('man', async (c) => {
 });
 
 register('tput', async (c) => {
-  const [cap, arg] = c.args;
+  let args = c.args;
+  if (args[0]?.startsWith('-T')) args = args[0] === '-T' ? args.slice(2) : args.slice(1);
+  else if (!c.sh.getScalar('TERM')) {
+    // as under cron: no terminal type, no capabilities
+    c.err('No value for $TERM and no -T specified');
+    return 2;
+  }
+  const [cap, arg] = args;
   const colors: Record<string, string> = { setaf: '3', setab: '4' };
   switch (cap) {
     case 'setaf':
