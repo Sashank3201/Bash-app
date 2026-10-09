@@ -280,4 +280,32 @@ inc; shadow; echo "outside: $count"`,
     name: 'arithmetic comparisons and ternaries',
     src: `for score in 95 72 40; do (( score >= 90 )) && grade=A || { (( score >= 70 )) && grade=B || grade=F; }; echo "$score:$grade"; done`,
   },
+  {
+    name: 'file reads magic bytes and aligns its columns',
+    files: {
+      'invoice.pdf': 'MZ\x00\x00\x03\x00\x00\x00PE\x00\x00L\x01 invoice viewer (training sample, not a real program)\n',
+      'short.exe': 'MZ\x00\x00\x03\x00\x00\x00PE\x00\x00L\x01 training sample\n',
+      'report.pdf': '%PDF-1.7\n% training sample\n',
+      'notes.txt': 'Meeting notes.\n',
+      'update.sh': '#!/bin/bash\necho hi\n',
+      'helper': '\x7fELF\x01\x01\x01 training sample\n',
+    },
+    src: `file invoice.pdf short.exe; file helper invoice.pdf notes.txt report.pdf update.sh; file -b notes.txt; file nope; echo "status $?"`,
+  },
+  {
+    name: 'touch -d / -t / -r set timestamps',
+    src: `touch -d "2026-03-10 10:00" a; touch -t 202603121530 b; touch -r a c; stat -c '%y %n' a b c; [ b -nt a ] && echo "b is newer"`,
+  },
+  {
+    name: 'base64 -d stops at the first invalid character',
+    src: `echo aWQ= | base64 -d; echo; echo '..%2f..%2fetc' | base64 -d 2>/dev/null; echo "status $?"; x=$(echo 'not base64!' | base64 -d 2>/dev/null); echo "status $? length \${#x}"`,
+  },
+  {
+    name: 'date -d formats used in the timeline lessons',
+    src: `date -d "2026-03-13 23:51:02" +%s; date -d "Mar 13 23:51:02 2026" '+%F %T'; date -d "13 Mar 2026 23:58:10" '+%F %T'; date -u -d @1773446000 '+%F %T'; date -d 2026-03-13 +%A; date -d "13/Mar/2026:23:58:10" 2>/dev/null; echo "status $?"`,
+  },
+  {
+    name: 'mktemp makes private files and folders',
+    src: `f=$(mktemp); d=$(mktemp -d); stat -c '%a %F' "$f" "$d"; case $f in /tmp/tmp.*) echo "file under /tmp";; esac; g=$(mktemp /tmp/scan.XXXXXX); [ -f "$g" ] && echo "template ok \${#g}"; rm -r "$f" "$d" "$g"`,
+  },
 ];

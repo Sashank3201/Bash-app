@@ -806,6 +806,17 @@ register(
   }),
 );
 
+function describeElf(content: string): string {
+  const cls = content.charCodeAt(4) === 2 ? '64-bit' : '32-bit';
+  const lsb = content.charCodeAt(5) !== 2;
+  const half = (o: number) => (lsb ? content.charCodeAt(o) | (content.charCodeAt(o + 1) << 8) : (content.charCodeAt(o) << 8) | content.charCodeAt(o + 1));
+  const type = ({ 1: 'relocatable', 2: 'executable', 3: 'shared object', 4: 'core file' } as Record<number, string>)[half(16)];
+  const machine = half(18);
+  const arch = ({ 3: 'Intel 80386', 0x3e: 'x86-64', 0x28: 'ARM', 0xb7: 'ARM aarch64' } as Record<number, string>)[machine];
+  const head = `ELF ${cls} ${lsb ? 'LSB' : 'MSB'}${type ? ' ' + type : ''}`;
+  return arch ? `${head}, ${arch}, version 1 (SYSV)` : `${head} *unknown arch 0x${machine.toString(16)}*`;
+}
+
 export function describeContent(content: string): string {
   if (content === '') return 'empty';
   const first = content.split('\n')[0];
@@ -814,9 +825,14 @@ export function describeContent(content: string): string {
   if (/^#!.*python/.test(first)) return 'Python script, ASCII text executable';
   const pdf = /^%PDF-(\d\.\d)/.exec(content);
   if (pdf) return `PDF document, version ${pdf[1]}`;
-  if (content.startsWith('\x7fELF')) return 'ELF 64-bit LSB executable, x86-64, version 1 (SYSV)';
-  if (content.startsWith('MZ') && content.includes('PE\x00\x00')) return 'PE32+ executable (GUI) x86-64, for MS Windows';
-  if (content.startsWith('MZ') && /[\x00-\x08]/.test(content)) return 'MS-DOS executable';
+  if (content.startsWith('\x7fELF')) return describeElf(content);
+  if (content.startsWith('MZ') && content.length >= 64) {
+    // e_lfanew (offset 0x3c) points at the PE header in a real Windows executable
+    const at = content.charCodeAt(0x3c) | (content.charCodeAt(0x3d) << 8);
+    if (at > 0 && content.slice(at, at + 4) === 'PE\x00\x00') return 'PE32 executable, for MS Windows';
+  }
+  // libmagic only says "MZ for MS-DOS" once the header is complete (64 bytes)
+  if (content.startsWith('MZ') && /[\x00-\x08]/.test(content)) return content.length >= 64 ? 'MS-DOS executable, MZ for MS-DOS' : 'MS-DOS executable';
   if (content.startsWith('PK\x03\x04')) return 'Zip archive data, at least v2.0 to extract';
   if (content.startsWith('\x89PNG')) return 'PNG image data';
   if (/[\x00-\x08\x0e-\x1f\x7f]/.test(content)) return 'data';
@@ -851,7 +867,9 @@ register('file', async (c) => {
       desc = describeContent(ln.content ?? '');
       if (ln.mode & 0o4000) desc = 'setuid ' + desc;
     }
-    c.stdout.write(brief ? desc + '\n' : `${f}: ${desc}\n`);
+    // GNU file pads after the colon so every description starts in the same column
+    const width = Math.max(...operands.map((o) => o.length)) + 1;
+    c.stdout.write(brief ? desc + '\n' : `${(f + ':').padEnd(width)} ${desc}\n`);
   }
   return 0;
 });
